@@ -1,0 +1,17 @@
+name: CI
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+jobs:
+  build-and-test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      # GmrtdKit's binary target is iOS-only, so plain `swift build`/`swift
+      # test` (which target the host Mac) can't resolve it — has to build
+      # against an iOS Simulator destination via xcodebuild instead.
+      - run: >
+          xcodebuild test -scheme GmrtdKit
+          -destination 'platform=iOS Simulator,name=iPhone 16'
