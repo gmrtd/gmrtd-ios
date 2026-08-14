@@ -1,0 +1,107 @@
+name: gmrtd-release-tracking
+on:
+  # Fired by gmrtd's own release workflow via the GitHub API (repository
+  # dispatch), client_payload: { "version": "1.2.0" } (with or without a
+  # leading "v").
+  repository_dispatch:
+    types: [gmrtd-release]
+  # Manual runs from the Actions tab. Leave `version` blank to pick up
+  # whatever gmrtd's GitHub "latest" release currently is.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "gmrtd version to pin (e.g. 1.2.0). Blank = gmrtd's latest release."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # A PAT, not the default GITHUB_TOKEN: PRs opened with the default
+          # token don't trigger other workflows (incl. ci.yml's pull_request
+          # run), so this bump would merge without ever having been tested.
+          token: ${{ secrets.RELEASE_TRACKING_PAT }}
+
+      - name: Resolve target gmrtd version
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TRACKING_PAT }}
+          DISPATCH_VERSION: ${{ github.event.client_payload.version }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          raw="${DISPATCH_VERSION:-${INPUT_VERSION:-}}"
+          if [ -z "$raw" ]; then
+            raw=$(gh api repos/gmrtd/gmrtd/releases/latest --jq .tag_name)
+          fi
+          version="${raw#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Resolved version '$version' doesn't look like a semver tag" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether this version is already pinned
+        id: current
+        run: |
+          set -euo pipefail
+          current=$(sed -nE 's/^let gmrtdCoreVersion = "([^"]+)"$/\1/p' Package.swift)
+          if [ "$current" = "${{ steps.resolve.outputs.version }}" ]; then
+            echo "already-current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already-current=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download release asset and compute checksum
+        if: steps.current.outputs.already-current == 'false'
+        id: checksum
+        run: |
+          set -euo pipefail
+          version="${{ steps.resolve.outputs.version }}"
+          url="https://github.com/gmrtd/gmrtd/releases/download/v${version}/Gmrtd.xcframework.zip"
+          curl -sSL --fail -o Gmrtd.xcframework.zip "$url"
+          checksum=$(swift package compute-checksum Gmrtd.xcframework.zip)
+          rm Gmrtd.xcframework.zip
+          echo "checksum=$checksum" >> "$GITHUB_OUTPUT"
+
+      - name: Update pinned version/checksum
+        if: steps.current.outputs.already-current == 'false'
+        run: |
+          set -euo pipefail
+          version="${{ steps.resolve.outputs.version }}"
+          checksum="${{ steps.checksum.outputs.checksum }}"
+          # BSD sed (macOS runner) -i syntax. Keeps the exact `let name = "value"`
+          # shape the doc comments in these files promise.
+          sed -i '' -E "s/^let gmrtdCoreVersion = \"[^\"]+\"\$/let gmrtdCoreVersion = \"${version}\"/" Package.swift
+          sed -i '' -E "s/^let gmrtdCoreChecksum = \"[^\"]+\"\$/let gmrtdCoreChecksum = \"${checksum}\"/" Package.swift
+          sed -i '' -E "s/^    static let expectedGmrtdCoreVersion = \"[^\"]+\"\$/    static let expectedGmrtdCoreVersion = \"${version}\"/" Tests/GmrtdKitTests/GmrtdKitTests.swift
+
+      - name: Open PR
+        if: steps.current.outputs.already-current == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TRACKING_PAT }}
+        run: |
+          set -euo pipefail
+          version="${{ steps.resolve.outputs.version }}"
+          branch="gmrtd-release-tracking/v${version}"
+
+          git config user.name "gmrtd-release-tracking[bot]"
+          git config user.email "gmrtd-release-tracking[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add Package.swift Tests/GmrtdKitTests/GmrtdKitTests.swift
+          git commit -m "fix: bump gmrtd core to v${version}"
+          git push --force origin "$branch"
+
+          existing=$(gh pr list --head "$branch" --state open --json number --jq 'length')
+          if [ "$existing" = "0" ]; then
+            gh pr create \
+              --title "fix: bump gmrtd core to v${version}" \
+              --body "Bumps the pinned \`gmrtd\` core to [v${version}](https://github.com/gmrtd/gmrtd/releases/tag/v${version}) and updates the matching \`Gmrtd.xcframework\` checksum. Opened automatically by gmrtd-release-tracking — CI must pass before merging." \
+              --head "$branch" --base main
+          fi
