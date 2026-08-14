@@ -6,9 +6,14 @@ on:
     branches: [main]
 jobs:
   build-and-test:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      # Tests use Swift Testing, which needs Xcode 16+; pin explicitly rather
+      # than relying on the runner image's default Xcode.
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
       # GmrtdKit's binary target is iOS-only, so plain `swift build`/`swift
       # test` (which target the host Mac) can't resolve it — has to build
       # against an iOS Simulator destination via xcodebuild instead.
