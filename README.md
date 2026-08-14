@@ -117,6 +117,14 @@ DispatchQueue.global(qos: .utility).async {
 
 `MRTDReadOptions.aaChallenge` / `DocumentJsonRegenerator.regenerate(aaChallenge:)` let you bind a read to an Active Authentication challenge (RND.IFD). **For real relay-attack protection, that challenge must be issued by whoever will verify the evidence** — typically your backend, freshly generated per verification request — not generated on the reading device. If you leave `aaChallenge` unset, GmrtdKit generates its own random challenge locally; that's enough to bind a read to its own later on-device re-verification, but a self-generated challenge proves nothing to an independent third-party verifier, since nothing stops the same app from choosing a challenge to match evidence it already captured.
 
+## Contributors
+
+<a href="https://github.com/gmrtd/gmrtd-ios/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=gmrtd/gmrtd-ios" alt="Contributors to gmrtd-ios" />
+</a>
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) to get involved.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
