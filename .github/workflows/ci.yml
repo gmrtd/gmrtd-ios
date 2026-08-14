@@ -9,11 +9,15 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      # Tests use Swift Testing, which needs Xcode 16+; pin explicitly rather
-      # than relying on the runner image's default Xcode.
+      # Tests use Swift Testing, which needs Xcode 16+. Pin to a specific
+      # version rather than `latest-stable`: the runner image can have a
+      # newer Xcode installed before its matching iOS Simulator runtime is
+      # provisioned, which leaves xcodebuild with no concrete simulator
+      # destinations to run against. 16.4 is the runner's default Xcode and
+      # is guaranteed to ship with a matching runtime.
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: "16.4"
       # GmrtdKit's binary target is iOS-only, so plain `swift build`/`swift
       # test` (which target the host Mac) can't resolve it — has to build
       # against an iOS Simulator destination via xcodebuild instead.
