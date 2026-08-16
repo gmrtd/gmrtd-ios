@@ -11,17 +11,21 @@ public enum DocumentJsonRegenerationError: Error {
     case verifierUnavailable
     case verificationFailed(underlying: Error)
     case invalidUtf8
+    /// Decoding gmrtd's summary JSON into `DocumentSummary` failed — a schema mismatch
+    /// between this package's native type and the gmrtd version it's bundled against,
+    /// not a verification failure.
+    case summaryDecodingFailed(underlying: Error)
 }
 
 public struct RegeneratedDocument {
-    public let summaryJson: String
+    public let summary: DocumentSummary
     public let technicalJson: String
 }
 
 public enum DocumentJsonRegenerator {
-    /// Reconstructs a document's summary and technical JSON representations from its
-    /// saved CBOR ("verifiable document") bytes via the gmrtd Verifier, from a single
-    /// verification pass.
+    /// Reconstructs a document's native summary and technical JSON representation from
+    /// its saved CBOR ("verifiable document") bytes via the gmrtd Verifier, from a
+    /// single verification pass.
     ///
     /// - Parameter aaChallenge: The same Active Authentication challenge that was used
     ///   when the document was originally read (see `MRTDReadOptions.aaChallenge` /
@@ -43,11 +47,16 @@ public enum DocumentJsonRegenerator {
                 let doc = try verifier.verify(cborData)
                 let technicalData = try doc.documentExJson()
                 let summaryData = try doc.summaryJson()
-                guard let technicalStr = String(data: technicalData, encoding: .utf8),
-                      let summaryStr = String(data: summaryData, encoding: .utf8) else {
+                guard let technicalStr = String(data: technicalData, encoding: .utf8) else {
                     return .failure(.invalidUtf8)
                 }
-                return .success(RegeneratedDocument(summaryJson: summaryStr, technicalJson: technicalStr))
+                let summary: DocumentSummary
+                do {
+                    summary = try DocumentSummary(jsonData: summaryData)
+                } catch {
+                    return .failure(.summaryDecodingFailed(underlying: error))
+                }
+                return .success(RegeneratedDocument(summary: summary, technicalJson: technicalStr))
             } catch {
                 return .failure(.verificationFailed(underlying: error))
             }

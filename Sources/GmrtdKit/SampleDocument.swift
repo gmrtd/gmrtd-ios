@@ -16,8 +16,9 @@ public enum SampleDocument {
                                       userInfo: [NSLocalizedDescriptionKey: "Sample document unavailable"])
             }
             let summaryJson = try doc.summaryJson()
+            let summary = try DocumentSummary(jsonData: summaryJson)
             let cbor = try? doc.documentExCbor()
-            return MRTDReadResult(cborData: cbor, summaryJson: summaryJson)
+            return MRTDReadResult(cborData: cbor, summary: summary)
         }
     }
 }

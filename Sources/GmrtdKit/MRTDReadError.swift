@@ -24,6 +24,11 @@ public enum MRTDReadError: Error, Equatable, Sendable {
     /// Caught before the NFC session starts — a caller/integration error, not a
     /// chip/session failure.
     case invalidAAChallenge
+    /// Decoding gmrtd's summary JSON into `DocumentSummary` failed — a schema mismatch
+    /// between this package's native type and the gmrtd version it's bundled against,
+    /// not a chip/session failure. Shouldn't happen in a correctly matched release; if
+    /// it does, it's a GmrtdKit bug rather than a caller error.
+    case summaryDecodingFailed(underlying: String)
 
     /// The original `error.localizedDescription` this case was classified from, e.g.
     /// for logging/support diagnosis. `nil` for `invalidAAChallenge`, which isn't
@@ -32,7 +37,7 @@ public enum MRTDReadError: Error, Equatable, Sendable {
     /// change wording across OS/library versions.
     public var underlying: String? {
         switch self {
-        case .notDetected(let underlying), .interrupted(let underlying), .unsupported(let underlying):
+        case .notDetected(let underlying), .interrupted(let underlying), .unsupported(let underlying), .summaryDecodingFailed(let underlying):
             return underlying
         case .invalidAAChallenge:
             return nil

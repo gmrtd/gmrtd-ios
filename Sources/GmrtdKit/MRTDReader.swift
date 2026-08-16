@@ -229,10 +229,17 @@ public final class MRTDReader: NSObject, @unchecked Sendable {
                     return .failure(MRTDReadError.classify(error))
                 }
 
-                var gmrtdSummaryJson: Data?
+                var gmrtdSummary: DocumentSummary?
 
                 do {
-                    gmrtdSummaryJson = try gmrtdDocument?.summaryJson()
+                    if let summaryJson = try gmrtdDocument?.summaryJson() {
+                        gmrtdSummary = try DocumentSummary(jsonData: summaryJson)
+                    }
+                } catch let error as DecodingError {
+                    #if DEBUG
+                    print("DocumentSummary decoding error: \(error)")
+                    #endif
+                    return .failure(.summaryDecodingFailed(underlying: "\(error)"))
                 } catch {
                     #if DEBUG
                     print("gmrtd.summaryJson error: \(error)")
@@ -249,7 +256,7 @@ public final class MRTDReader: NSObject, @unchecked Sendable {
                     #endif
                 }
 
-                return .success(MRTDReadResult(cborData: gmrtdCbor, summaryJson: gmrtdSummaryJson, aaChallenge: aaChallenge))
+                return .success(MRTDReadResult(cborData: gmrtdCbor, summary: gmrtdSummary, aaChallenge: aaChallenge))
             }
 
             switch result {
