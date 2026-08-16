@@ -71,10 +71,34 @@ struct GmrtdKitTests {
         case let .success(regenerated):
             #expect(regenerated.technicalJson.contains("nameOfHolder"))
             #expect(regenerated.technicalJson.contains("documentNumber"))
-            #expect(regenerated.summaryJson.contains("identityAttributes"))
+            #expect(regenerated.summary.identityAttributes != nil)
         case let .failure(error):
             Issue.record("regeneration failed: \(error)")
         }
+    }
+
+    // Pins the native DocumentSummary decoding against the sample document's known
+    // (TD2/DG11/DG16 worked-example) field values. If a future gmrtd release changes
+    // DocumentSummary's JSON shape, this fails loudly instead of silently dropping
+    // fields via a schema mismatch — see DocumentSummary's doc comment.
+    @Test func sampleDocumentSummaryDecodesExpectedFields() throws {
+        let sample = try SampleDocument.load()
+        let summary = try #require(sample.summary)
+
+        // Passive Authentication is expected to fail for the sample document (its DGs
+        // are sourced from different worked examples than its EF.SOD) — see
+        // gmrtd's document.SampleDocument doc comment.
+        #expect(summary.dataTrusted == false)
+        #expect(summary.chipAuthenticity == .none)
+
+        let identity = try #require(summary.identityAttributes)
+        #expect(identity.documentNumber == "D23145890")
+        #expect(identity.sex == "F")
+        #expect(identity.dateOfBirthMrzRaw == "740812")
+        #expect(identity.dateOfExpiry == "20120415")
+        #expect(identity.nationality?.alpha3 == "UTO")
+        #expect((identity.faceImages?.count ?? 0) > 0)
+        #expect((identity.personsToNotify?.count ?? 0) > 0)
     }
 
     @Test func missingCborProducesMissingCborError() {
@@ -191,7 +215,7 @@ struct GmrtdKitTests {
             } },
             { while Date() < deadline {
                 if let loaded = try? SampleDocument.load() {
-                    #expect(loaded.summaryJson != nil)
+                    #expect(loaded.summary != nil)
                 }
                 counter.increment()
             } },

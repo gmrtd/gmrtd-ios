@@ -64,7 +64,7 @@ let credential = MRTDCredential.mrz(mrzString) // or .can("123456") for eID card
 reader.read(credential: credential) { result in
     switch result {
     case .success(let readResult):
-        // readResult.summaryJson, readResult.cborData
+        // readResult.summary, readResult.cborData
         break
     case .failure(let error):
         // MRTDReadError: .notDetected, .interrupted, .unsupported, .invalidAAChallenge
@@ -96,9 +96,9 @@ isValidMRZ(candidateString) // character + check-digit validation, no chip acces
 let result = DocumentJsonRegenerator.regenerate(fromCbor: savedCborData)
 switch result {
 case .success(let doc):
-    print(doc.summaryJson, doc.technicalJson)
+    print(doc.summary, doc.technicalJson)
 case .failure(let error):
-    // .missingCbor, .verifierUnavailable, .verificationFailed, .invalidUtf8
+    // .missingCbor, .verifierUnavailable, .verificationFailed, .invalidUtf8, .summaryDecodingFailed
     break
 }
 ```
