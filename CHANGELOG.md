@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/gmrtd/gmrtd-ios/compare/v0.3.0...v0.4.0) (2026-08-16)
+
+
+### Features
+
+* Replace summaryJson with a native DocumentSummary Swift type ([#11](https://github.com/gmrtd/gmrtd-ios/issues/11)) ([6e30a4a](https://github.com/gmrtd/gmrtd-ios/commit/6e30a4ab0704cb66fec3547df47cb431c366768c))
+
 ## [0.3.0](https://github.com/gmrtd/gmrtd-ios/compare/v0.2.0...v0.3.0) (2026-08-14)
 
 
