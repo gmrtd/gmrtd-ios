@@ -59,7 +59,10 @@ reader.onChipConnected = { aid in
     // fire haptics / start a progress indicator
 }
 
-let credential = MRTDCredential.mrz(mrzString) // or .can("123456") for eID cards
+let credential = MRTDCredential.mrz(mrzString)
+// or .can("123456") for eID cards
+// or .mrzi(documentNo: "L898902C3", dateOfBirth: "740812", dateOfExpiry: "120415")
+//   when you have the individual fields (YYMMDD dates) but not a full MRZ string
 
 reader.read(credential: credential) { result in
     switch result {
