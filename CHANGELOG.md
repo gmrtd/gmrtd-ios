@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/gmrtd/gmrtd-ios/compare/v0.5.0...v0.6.0) (2026-08-24)
+
+
+### Features
+
+* add MRZi credential (document number + DOB + DOE) ([#21](https://github.com/gmrtd/gmrtd-ios/issues/21)) ([393d2eb](https://github.com/gmrtd/gmrtd-ios/commit/393d2eb8a6014b2595d770d283d974ca16f649f1))
+
 ## [0.5.0](https://github.com/gmrtd/gmrtd-ios/compare/v0.4.3...v0.5.0) (2026-08-24)
 
 
