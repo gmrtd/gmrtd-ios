@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/gmrtd/gmrtd-ios/compare/v0.4.3...v0.5.0) (2026-08-24)
+
+
+### Features
+
+* expose AllowBacFallbackOnPaceError via MRTDReadOptions ([#19](https://github.com/gmrtd/gmrtd-ios/issues/19)) ([6175a37](https://github.com/gmrtd/gmrtd-ios/commit/6175a37adc8a1512c40e2ed08e2b75bb3f7c66c5))
+
 ## [0.4.3](https://github.com/gmrtd/gmrtd-ios/compare/v0.4.2...v0.4.3) (2026-08-24)
 
 
