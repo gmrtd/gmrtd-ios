@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.3](https://github.com/gmrtd/gmrtd-ios/compare/v0.4.2...v0.4.3) (2026-08-24)
+
+
+### Bug Fixes
+
+* select an available iOS Simulator dynamically in CI ([#17](https://github.com/gmrtd/gmrtd-ios/issues/17)) ([b073b69](https://github.com/gmrtd/gmrtd-ios/commit/b073b69a6aba8cfba4622be880167cf92bad0e96))
+
+## [0.4.2](https://github.com/gmrtd/gmrtd-ios/compare/v0.4.1...v0.4.2) (2026-08-24)
+
+
+### Bug Fixes
+
+* bump gmrtd core to v1.1.3 ([#15](https://github.com/gmrtd/gmrtd-ios/issues/15)) ([cb0fa80](https://github.com/gmrtd/gmrtd-ios/commit/cb0fa80cc210c4992453338d50df6bc4655440f9))
+
 ## [0.4.1](https://github.com/gmrtd/gmrtd-ios/compare/v0.4.0...v0.4.1) (2026-08-21)
 
 
