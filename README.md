@@ -75,7 +75,7 @@ reader.read(credential: credential) { result in
 
 `read(credential:options:completion:)` must be called from the main thread; `reader.cancel()` is safe to call from any thread (e.g. a caller-side watchdog timer).
 
-`MRTDReadOptions` lets you skip PACE or image data groups, raise the max APDU length for extended-length-capable chips, and supply an Active Authentication challenge (see [Security notes](#security-notes) below).
+`MRTDReadOptions` lets you skip PACE or image data groups, fall back to BAC if PACE is attempted and fails, raise the max APDU length for extended-length-capable chips, and supply an Active Authentication challenge (see [Security notes](#security-notes) below).
 
 ### Locating and validating an MRZ (e.g. from OCR)
 
