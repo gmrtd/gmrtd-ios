@@ -20,7 +20,17 @@ jobs:
           xcode-version: "16.4"
       # GmrtdKit's binary target is iOS-only, so plain `swift build`/`swift
       # test` (which target the host Mac) can't resolve it — has to build
-      # against an iOS Simulator destination via xcodebuild instead.
-      - run: >
-          xcodebuild test -scheme GmrtdKit
-          -destination 'platform=iOS Simulator,name=iPhone 16'
+      # against an iOS Simulator destination via xcodebuild instead. Look up
+      # a simulator that's actually provisioned on the runner rather than
+      # hardcoding a device name, since the set of pre-created simulators for
+      # a given Xcode version varies across runner image updates.
+      - run: |
+          set -euo pipefail
+          RUNTIME_ID=$(xcrun simctl list runtimes -j | jq -r '
+            [.runtimes[] | select(.isAvailable) | select(.name | startswith("iOS"))]
+            | sort_by(.version | split(".") | map(tonumber))
+            | last | .identifier')
+          DEVICE_NAME=$(xcrun simctl list devices -j | jq -r --arg rt "$RUNTIME_ID" '
+            .devices[$rt][] | select(.isAvailable) | select(.name | test("^iPhone")) | .name' | head -1)
+          echo "Testing against: $DEVICE_NAME ($RUNTIME_ID)"
+          xcodebuild test -scheme GmrtdKit -destination "platform=iOS Simulator,name=$DEVICE_NAME"
