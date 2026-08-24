@@ -100,8 +100,8 @@ public final class MRTDReader: NSObject, @unchecked Sendable {
     }
 
     /// Calls `completionHandler` exactly once and clears it, `credential` (which may
-    /// hold a raw MRZ/CAN), and `nfcTag` so they don't linger on this instance after
-    /// the read is done. Safe to call redundantly — e.g. from both `readMrtd`'s own
+    /// hold a raw MRZ/CAN/MRZi), and `nfcTag` so they don't linger on this instance
+    /// after the read is done. Safe to call redundantly — e.g. from both `readMrtd`'s own
     /// outcome and the `didInvalidateWithError` delegate callback that follows the
     /// `session.invalidate()` it triggers.
     private func claimCompletionHandler() -> (@Sendable (Result<MRTDReadResult, MRTDReadError>) -> Void)? {
@@ -164,6 +164,8 @@ public final class MRTDReader: NSObject, @unchecked Sendable {
                 switch credential {
                 case .mrz(let s): gmrtdPassword = GmrtdMobileNewPasswordMrz(s, &err)
                 case .can(let c): gmrtdPassword = GmrtdMobileNewPasswordCan(c, &err)
+                case .mrzi(let documentNo, let dateOfBirth, let dateOfExpiry):
+                    gmrtdPassword = GmrtdMobileNewPasswordMrzi(documentNo, dateOfBirth, dateOfExpiry, &err)
                 }
                 if let err {
                     #if DEBUG
