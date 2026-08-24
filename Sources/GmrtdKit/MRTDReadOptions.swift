@@ -11,6 +11,11 @@ import Foundation
 public struct MRTDReadOptions: Sendable {
     /// Skips PACE authentication and falls back to BAC even when the chip supports PACE.
     public var skipPace: Bool
+    /// Falls back to BAC if PACE is attempted and fails, rather than failing the read.
+    /// The underlying reader defaults to fail-closed on a PACE error; set this to opt
+    /// into the more permissive behavior. Has no effect when `skipPace` is set, since
+    /// PACE is never attempted in that case.
+    public var allowBacFallbackOnPaceError: Bool
     /// Skips reading image data groups (e.g. DG2 face image).
     public var skipImages: Bool
     /// Raises the max APDU response length to support extended-length capable chips/readers.
@@ -43,11 +48,13 @@ public struct MRTDReadOptions: Sendable {
     public var aaChallenge: Data?
 
     public init(skipPace: Bool = false,
+                allowBacFallbackOnPaceError: Bool = false,
                 skipImages: Bool = false,
                 extendedLength: Bool = false,
                 includePaceInPolling: Bool = true,
                 aaChallenge: Data? = nil) {
         self.skipPace = skipPace
+        self.allowBacFallbackOnPaceError = allowBacFallbackOnPaceError
         self.skipImages = skipImages
         self.extendedLength = extendedLength
         self.includePaceInPolling = includePaceInPolling

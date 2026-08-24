@@ -178,6 +178,10 @@ public final class MRTDReader: NSObject, @unchecked Sendable {
                     self.gmrtdReader?.skipPace()
                 }
 
+                if options.allowBacFallbackOnPaceError {
+                    self.gmrtdReader?.allowBacFallbackOnPaceError()
+                }
+
                 if options.skipImages {
                     self.gmrtdReader?.skipImages()
                 }
