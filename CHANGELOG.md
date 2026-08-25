@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0](https://github.com/gmrtd/gmrtd-ios/compare/v0.6.0...v1.0.0) (2026-08-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* declare GmrtdKit API stable at 1.0.0 ([#23](https://github.com/gmrtd/gmrtd-ios/issues/23))
+
+### Features
+
+* declare GmrtdKit API stable at 1.0.0 ([#23](https://github.com/gmrtd/gmrtd-ios/issues/23)) ([a6f7026](https://github.com/gmrtd/gmrtd-ios/commit/a6f7026fa8bbbad5feffed9b1953a5c26e403dc7))
+
 ## [0.6.0](https://github.com/gmrtd/gmrtd-ios/compare/v0.5.0...v0.6.0) (2026-08-24)
 
 
