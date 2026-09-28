@@ -137,6 +137,14 @@ public struct IdentityAttributes: Decodable, Sendable {
     public let dateOfExpiry: String?
     public let dateOfExpiryMrzRaw: String?
 
+    /// Whether `dateOfExpiry` is before today's date in the device's local time zone (a
+    /// document is valid through its expiry date, inclusive), evaluated by gmrtd when the
+    /// summary is built. `nil` when it can't be determined: no DG1, or an expiry that isn't
+    /// a real date (e.g. the non-standard "999999" some issuers use for non-expiring
+    /// documents). Deliberately not a factor in `DocumentSummary.dataTrusted`: an expired
+    /// document is still authentic, and whether expiry matters is the caller's policy.
+    public let expired: Bool?
+
     public let placeOfBirth: [String]?
     public let address: [String]?
     public let telephone: String?

@@ -96,9 +96,24 @@ struct GmrtdKitTests {
         #expect(identity.sex == "F")
         #expect(identity.dateOfBirthMrzRaw == "740812")
         #expect(identity.dateOfExpiry == "20120415")
+        #expect(identity.expired == true)
         #expect(identity.nationality?.alpha3 == "UTO")
         #expect((identity.faceImages?.count ?? 0) > 0)
         #expect((identity.personsToNotify?.count ?? 0) > 0)
+    }
+
+    // `expired` is omitempty on the Go side (nil when expiry can't be determined), so an
+    // absent key must decode to nil rather than failing the whole summary.
+    @Test func identityAttributesExpiredDecodesWhenPresentOrAbsent() throws {
+        func decode(_ identityJson: String) throws -> IdentityAttributes? {
+            let json = #"{"dataTrusted":true,"chipAuthenticity":0,"identityAttributes":\#(identityJson)}"#
+            return try DocumentSummary(jsonData: Data(json.utf8)).identityAttributes
+        }
+
+        #expect(try decode(#"{"dateOfExpiry":"20120415","expired":true}"#)?.expired == true)
+        #expect(try decode(#"{"dateOfExpiry":"20990101","expired":false}"#)?.expired == false)
+        let absent = try #require(try decode(#"{"dateOfExpiryMrzRaw":"999999"}"#))
+        #expect(absent.expired == nil)
     }
 
     @Test func missingCborProducesMissingCborError() {
