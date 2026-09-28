@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/gmrtd/gmrtd-ios/compare/v1.0.2...v1.1.0) (2026-09-28)
+
+
+### Features
+
+* expose IdentityAttributes.expired from gmrtd core 1.3.0 ([#31](https://github.com/gmrtd/gmrtd-ios/issues/31)) ([1837229](https://github.com/gmrtd/gmrtd-ios/commit/183722915a5ce3a14fd94057a414420fcadf01b0))
+
 ## [1.0.2](https://github.com/gmrtd/gmrtd-ios/compare/v1.0.1...v1.0.2) (2026-09-28)
 
 
