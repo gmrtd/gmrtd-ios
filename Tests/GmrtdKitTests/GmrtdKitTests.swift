@@ -193,7 +193,7 @@ struct GmrtdKitTests {
     // Bumped by the automated gmrtd-release-tracking job alongside `gmrtdCoreVersion`
     // in Package.swift — keep this exact `let name = "value"` shape so the bot can
     // locate/replace by regex.
-    static let expectedGmrtdCoreVersion = "1.3.0"
+    static let expectedGmrtdCoreVersion = "1.3.2"
 
     // If this fails after a version/checksum bump, the release's xcframework zip
     // wasn't actually rebuilt at the tag it claims to be.
