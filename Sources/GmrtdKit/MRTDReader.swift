@@ -184,6 +184,10 @@ public final class MRTDReader: NSObject, @unchecked Sendable {
                     self.gmrtdReader?.allowBacFallbackOnPaceError()
                 }
 
+                if options.requireAuthenticDocument {
+                    self.gmrtdReader?.requireAuthenticDocument()
+                }
+
                 if options.skipImages {
                     self.gmrtdReader?.skipImages()
                 }

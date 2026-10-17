@@ -21,13 +21,132 @@ public struct DocumentSummary: Decodable, Sendable {
     /// callers may want to inspect it for manual review. `dataTrusted` is the sole signal
     /// for whether this data has been cryptographically verified.
     public let identityAttributes: IdentityAttributes?
+
+    /// The Passive Authentication outcome and the certificate trust chains behind
+    /// `dataTrusted`, for display. Optional so summaries from gmrtd releases before
+    /// 1.4.0 still decode.
+    public let passiveAuth: PassiveAuthSummary?
 }
 
 extension DocumentSummary {
     /// Decodes gmrtd's `summaryJson()`/`SummaryJson()` output into this type.
     public init(jsonData: Data) throws {
-        self = try JSONDecoder().decode(DocumentSummary.self, from: jsonData)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(decodeRFC3339Date)
+        self = try decoder.decode(DocumentSummary.self, from: jsonData)
     }
+}
+
+/// Decodes a Go `time.Time` (RFC 3339, with optional fractional seconds).
+private func decodeRFC3339Date(_ decoder: Decoder) throws -> Date {
+    let container = try decoder.singleValueContainer()
+    let raw = try container.decode(String.self)
+    for options: ISO8601DateFormatter.Options in [[.withInternetDateTime], [.withInternetDateTime, .withFractionalSeconds]] {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = options
+        if let date = formatter.date(from: raw) {
+            return date
+        }
+    }
+    throw DecodingError.dataCorruptedError(in: container, debugDescription: "invalid RFC 3339 date: \(raw)")
+}
+
+/// The Passive Authentication outcome and certificate trust chains. Mirrors gmrtd's
+/// `document.PassiveAuthSummary`.
+public struct PassiveAuthSummary: Decodable, Sendable {
+    public let status: PassiveAuthStatus
+    public let error: String?
+
+    public let sod: SignedObjectTrust?
+    /// `nil` when the document has no EF.CardSecurity.
+    public let cardSecurity: SignedObjectTrust?
+}
+
+/// Mirrors gmrtd's `document.PassiveAuthStatus` (`PASSIVE_AUTH_STATUS_*`).
+public enum PassiveAuthStatus: Sendable, Equatable {
+    case verified
+    case failed
+    case notPerformed
+    /// Forward-compat: a status value this build doesn't know about yet.
+    case other(String)
+}
+
+extension PassiveAuthStatus: Decodable {
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        switch raw {
+        case "VERIFIED": self = .verified
+        case "FAILED": self = .failed
+        case "NOT_PERFORMED": self = .notPerformed
+        default: self = .other(raw)
+        }
+    }
+}
+
+/// The trust chain of one signed object (EF.SOD or EF.CardSecurity). Mirrors gmrtd's
+/// `document.SignedObjectTrust`.
+///
+/// When `verified`, `chain` is the verified chain: each document signer certificate
+/// followed by the trusted CSCA (or CSCA link) certificate that issued it. Otherwise
+/// `chain` only holds the document signer certificate(s) embedded in the document,
+/// if they can be identified. These are chip-supplied and **unverified**: they show
+/// who claims to have signed the data, never that it is trustworthy.
+public struct SignedObjectTrust: Decodable, Sendable {
+    public let verified: Bool
+    public let chain: [TrustChainCertificate]?
+}
+
+/// Mirrors gmrtd's `document.CertificateRole` (`CERTIFICATE_ROLE_*`).
+public enum CertificateRole: Sendable, Equatable {
+    case documentSigner
+    case csca
+    case cscaLink
+    /// Forward-compat: a role value this build doesn't know about yet.
+    case other(String)
+}
+
+extension CertificateRole: Decodable {
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        switch raw {
+        case "DOCUMENT_SIGNER": self = .documentSigner
+        case "CSCA": self = .csca
+        case "CSCA_LINK": self = .cscaLink
+        default: self = .other(raw)
+        }
+    }
+}
+
+/// A display-oriented summary of one certificate in a trust chain. Mirrors gmrtd's
+/// `document.TrustChainCertificate` (and the embedded `cms.CertificateInfo`). Fields
+/// gmrtd couldn't determine from a malformed certificate are `nil`.
+public struct TrustChainCertificate: Decodable, Sendable {
+    public let role: CertificateRole
+
+    /// Whether the certificate has expired as of when the summary was built. Informational
+    /// only: verification is at the time of signing, so an expired certificate is expected
+    /// for older documents and does not mean the chain is untrusted. `nil` when the
+    /// validity period can't be parsed.
+    public let expired: Bool?
+
+    public let subject: String?
+    public let issuer: String?
+    /// The subject's countryName, as encoded in the certificate (case varies by issuer).
+    public let country: String?
+    /// Hex.
+    public let serialNumber: String?
+    public let notBefore: Date?
+    public let notAfter: Date?
+    /// e.g. "EC(BrainpoolP256r1)", "RSA(3072)".
+    public let keyType: String?
+    public let signatureAlgorithm: String?
+    /// Hex.
+    public let subjectKeyId: String?
+    /// Hex.
+    public let authorityKeyId: String?
+    /// Hex SHA-256 of the DER certificate.
+    public let fingerprintSha256: String?
+    public let ca: Bool?
 }
 
 /// Mirrors gmrtd's `document.ChipAuthStatus` (see `CHIP_AUTH_STATUS_*` in

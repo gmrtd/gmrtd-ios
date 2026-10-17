@@ -16,6 +16,14 @@ public struct MRTDReadOptions: Sendable {
     /// into the more permissive behavior. Has no effect when `skipPace` is set, since
     /// PACE is never attempted in that case.
     public var allowBacFallbackOnPaceError: Bool
+    /// Fails the read with `MRTDReadError.notAuthentic` unless the document is verifiably
+    /// authentic: its data must be trusted (Passive Authentication succeeded), and if
+    /// any chip authentication method (Active Authentication, Chip Authentication or
+    /// PACE-CAM) was attempted, at least one must have verifiably succeeded. A document
+    /// offering no chip authentication passes when its data is trusted, and one method
+    /// failing is tolerated when another succeeds. A method gmrtd cannot perform counts
+    /// as failed. No document is returned with the error.
+    public var requireAuthenticDocument: Bool
     /// Skips reading image data groups (e.g. DG2 face image).
     public var skipImages: Bool
     /// Raises the max APDU response length to support extended-length capable chips/readers.
@@ -49,12 +57,14 @@ public struct MRTDReadOptions: Sendable {
 
     public init(skipPace: Bool = false,
                 allowBacFallbackOnPaceError: Bool = false,
+                requireAuthenticDocument: Bool = false,
                 skipImages: Bool = false,
                 extendedLength: Bool = false,
                 includePaceInPolling: Bool = true,
                 aaChallenge: Data? = nil) {
         self.skipPace = skipPace
         self.allowBacFallbackOnPaceError = allowBacFallbackOnPaceError
+        self.requireAuthenticDocument = requireAuthenticDocument
         self.skipImages = skipImages
         self.extendedLength = extendedLength
         self.includePaceInPolling = includePaceInPolling
