@@ -245,8 +245,46 @@ struct GmrtdKitTests {
     @Test func notAuthenticErrorIsClassifiedFromGmrtdMessage() {
         let msg = "[ReadDocument] runSteps error: [runSteps] error: [checkAuthenticDocument] document is not authentic: data not trusted: PA failed"
         let error = MRTDReadError.classify(NSError(domain: "go", code: 1, userInfo: [NSLocalizedDescriptionKey: msg]))
-        #expect(error == .notAuthentic(underlying: msg))
+        #expect(error == .notAuthentic(underlying: msg, summary: nil))
         #expect(error.underlying == msg)
+    }
+
+    static let rejectedSummaryJson = Data("""
+        {"dataTrusted":false,"chipAuthenticity":0,"passiveAuth":{"status":"FAILED","error":"PA failed","sod":{"verified":false}}}
+        """.utf8)
+
+    @Test func notAuthenticErrorCarriesTheRejectedSummary() throws {
+        let error = MRTDReadError.notAuthentic(underlying: "not authentic", summary: nil)
+            .withRejectedSummary { Self.rejectedSummaryJson }
+
+        guard case .notAuthentic(let underlying, let summary) = error else {
+            Issue.record("expected .notAuthentic, got \(error)")
+            return
+        }
+        #expect(underlying == "not authentic")
+        let rejected = try #require(summary)
+        #expect(rejected.dataTrusted == false)
+        #expect(rejected.passiveAuth?.status == .failed)
+        #expect(rejected.passiveAuth?.sod?.verified == false)
+        #expect(error == .notAuthentic(underlying: "not authentic", summary: try DocumentSummary(jsonData: Self.rejectedSummaryJson)))
+    }
+
+    @Test func notAuthenticErrorWithoutAUsableSummaryHasNone() {
+        struct SummaryUnavailable: Error {}
+        let base = MRTDReadError.notAuthentic(underlying: "not authentic", summary: nil)
+
+        #expect(base.withRejectedSummary { nil } == base)
+        #expect(base.withRejectedSummary { throw SummaryUnavailable() } == base)
+        #expect(base.withRejectedSummary { Data("not json".utf8) } == base)
+    }
+
+    @Test func rejectedSummaryIsOnlyAttachedToNotAuthentic() {
+        var fetched = false
+        let error = MRTDReadError.interrupted(underlying: "connection lost")
+            .withRejectedSummary { fetched = true; return Self.rejectedSummaryJson }
+
+        #expect(error == .interrupted(underlying: "connection lost"))
+        #expect(fetched == false)
     }
 
     @Test func requireAuthenticDocumentDefaultsToOff() {

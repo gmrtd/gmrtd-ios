@@ -10,7 +10,7 @@ import Foundation
 /// struct's `json` tags directly, so this type has to be kept in sync by hand whenever
 /// gmrtd's `document/document_summary.go` changes shape — gomobile can't bind nested
 /// structs/slices directly, which is why the JSON round-trip exists at all.
-public struct DocumentSummary: Decodable, Sendable {
+public struct DocumentSummary: Decodable, Sendable, Equatable {
     public let dataTrusted: Bool
     public let chipAuthenticity: ChipAuthStatus
     public let ldsVersion: String?
@@ -53,7 +53,7 @@ private func decodeRFC3339Date(_ decoder: Decoder) throws -> Date {
 
 /// The Passive Authentication outcome and certificate trust chains. Mirrors gmrtd's
 /// `document.PassiveAuthSummary`.
-public struct PassiveAuthSummary: Decodable, Sendable {
+public struct PassiveAuthSummary: Decodable, Sendable, Equatable {
     public let status: PassiveAuthStatus
     public let error: String?
 
@@ -91,7 +91,7 @@ extension PassiveAuthStatus: Decodable {
 /// `chain` only holds the document signer certificate(s) embedded in the document,
 /// if they can be identified. These are chip-supplied and **unverified**: they show
 /// who claims to have signed the data, never that it is trustworthy.
-public struct SignedObjectTrust: Decodable, Sendable {
+public struct SignedObjectTrust: Decodable, Sendable, Equatable {
     public let verified: Bool
     public let chain: [TrustChainCertificate]?
 }
@@ -120,7 +120,7 @@ extension CertificateRole: Decodable {
 /// A display-oriented summary of one certificate in a trust chain. Mirrors gmrtd's
 /// `document.TrustChainCertificate` (and the embedded `cms.CertificateInfo`). Fields
 /// gmrtd couldn't determine from a malformed certificate are `nil`.
-public struct TrustChainCertificate: Decodable, Sendable {
+public struct TrustChainCertificate: Decodable, Sendable, Equatable {
     public let role: CertificateRole
 
     /// Whether the certificate has expired as of when the summary was built. Informational
@@ -176,21 +176,21 @@ extension ChipAuthStatus: Decodable {
 
 /// Resolves an MRZ alpha-3 country code to its alpha-2 code and full name. Mirrors gmrtd's
 /// `document.CountryInfo`.
-public struct CountryInfo: Decodable, Sendable {
+public struct CountryInfo: Decodable, Sendable, Equatable {
     public let alpha3: String?
     public let alpha2: String?
     public let name: String?
 }
 
 /// Mirrors gmrtd's `mrz.MrzName`.
-public struct MrzName: Decodable, Sendable {
+public struct MrzName: Decodable, Sendable, Equatable {
     public let primary: String?
     public let secondary: String?
 }
 
 /// A raw image (e.g. face photo, signature) together with its detected format. Mirrors
 /// gmrtd's `document.ImageData`.
-public struct ImageData: Decodable, Sendable {
+public struct ImageData: Decodable, Sendable, Equatable {
     public let data: Data?
     public let format: ImageFormat?
 }
@@ -216,7 +216,7 @@ extension ImageFormat: Decodable {
 }
 
 /// Mirrors gmrtd's `document.PersonToNotify` (DG16).
-public struct PersonToNotify: Decodable, Sendable {
+public struct PersonToNotify: Decodable, Sendable, Equatable {
     public let dateRecorded: String?
     public let name: MrzName?
     public let telephone: String?
@@ -227,7 +227,7 @@ public struct PersonToNotify: Decodable, Sendable {
 /// (DG1 MRZ, DG2, DG7, DG11, DG12, DG16). Where multiple DGs carry the same field, the
 /// higher-fidelity source wins — see gmrtd's `buildIdentityAttributes` for the precedence
 /// rules. Mirrors gmrtd's `document.IdentityAttributes`.
-public struct IdentityAttributes: Decodable, Sendable {
+public struct IdentityAttributes: Decodable, Sendable, Equatable {
     public let documentCode: String?
     public let issuingState: CountryInfo?
     public let documentNumber: String?

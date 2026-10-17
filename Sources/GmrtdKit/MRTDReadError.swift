@@ -24,7 +24,11 @@ public enum MRTDReadError: Error, Equatable, Sendable {
     /// verifiably authentic: Passive Authentication failed, or chip authentication was
     /// attempted and none verifiably succeeded. The chip was read; it just can't be
     /// trusted, so retrying won't help.
-    case notAuthentic(underlying: String)
+    ///
+    /// `summary` is the rejected document's summary, e.g. to show the user why via
+    /// `summary.passiveAuth`. It is **not** authentic: present it only as a rejected
+    /// document, never as an accepted one. `nil` if it couldn't be retrieved or decoded.
+    case notAuthentic(underlying: String, summary: DocumentSummary?)
     /// `MRTDReadOptions.aaChallenge` was provided but isn't exactly 8 bytes.
     /// Caught before the NFC session starts — a caller/integration error, not a
     /// chip/session failure.
@@ -43,7 +47,7 @@ public enum MRTDReadError: Error, Equatable, Sendable {
     public var underlying: String? {
         switch self {
         case .notDetected(let underlying), .interrupted(let underlying), .unsupported(let underlying),
-             .notAuthentic(let underlying), .summaryDecodingFailed(let underlying):
+             .notAuthentic(let underlying, _), .summaryDecodingFailed(let underlying):
             return underlying
         case .invalidAAChallenge:
             return nil
@@ -60,10 +64,20 @@ public enum MRTDReadError: Error, Equatable, Sendable {
         }
         // gmrtd's reader.ErrDocumentNotAuthentic (RequireAuthenticDocument)
         if msg.contains("document is not authentic") {
-            return .notAuthentic(underlying: msg)
+            return .notAuthentic(underlying: msg, summary: nil)
         }
         // Catches: "Connection error:", "Error reading document",
         // semaphore/watchdog timeout, and any other mid-read failure.
         return .interrupted(underlying: msg)
+    }
+
+    /// Attaches the rejected document's summary to `.notAuthentic`, from gmrtd's
+    /// `Reader.RejectedDocument()` (gomobile drops the document `ReadDocument` returns
+    /// with its error). Other cases are returned unchanged.
+    func withRejectedSummary(_ summaryJson: () throws -> Data?) -> MRTDReadError {
+        guard case .notAuthentic(let underlying, nil) = self, let json = try? summaryJson() else {
+            return self
+        }
+        return .notAuthentic(underlying: underlying, summary: try? DocumentSummary(jsonData: json))
     }
 }
