@@ -83,6 +83,32 @@ extension PassiveAuthStatus: Decodable {
     }
 }
 
+/// Where `IdentityAttributes.dateOfBirth` came from. Mirrors gmrtd's
+/// `document.DateOfBirthSource` (`DOB_SOURCE_*`).
+public enum DateOfBirthSource: Sendable, Equatable {
+    /// DG11's `FullDateOfBirth` (YYYYMMDD).
+    case dg11
+    /// The DG1 MRZ, raw YYMMDD (no century).
+    case dg1Mrz
+    /// The DG1 MRZ YYMMDD, expanded to YYYYMMDD using the century encoded by the Singapore
+    /// NRIC in the MRZ optional data ('S' = 19xx, 'T' = 20xx).
+    case dg1MrzSgNric
+    /// Forward-compat: a source value this build doesn't know about yet.
+    case other(String)
+}
+
+extension DateOfBirthSource: Decodable {
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        switch raw {
+        case "DG11": self = .dg11
+        case "DG1_MRZ": self = .dg1Mrz
+        case "DG1_MRZ_SG_NRIC": self = .dg1MrzSgNric
+        default: self = .other(raw)
+        }
+    }
+}
+
 /// The trust chain of one signed object (EF.SOD or EF.CardSecurity). Mirrors gmrtd's
 /// `document.SignedObjectTrust`.
 ///
@@ -240,14 +266,21 @@ public struct IdentityAttributes: Decodable, Sendable, Equatable {
     public let nameMrzRaw: MrzName?
     public let otherNames: [MrzName]?
 
-    /// DG11's `FullDateOfBirth` (YYYYMMDD) if present, else the raw DG1 MRZ value (YYMMDD,
-    /// no century). The raw, per-source values are also surfaced below.
+    /// DG11's `FullDateOfBirth` (YYYYMMDD) if present, else the DG1 MRZ value: raw YYMMDD
+    /// (no century), except where the issuer's own MRZ data determines the century
+    /// (currently Singapore passports, from the NRIC), when it is YYYYMMDD.
+    /// `dateOfBirthSource` says which applies. The raw, per-source values are also
+    /// surfaced below.
     public let dateOfBirth: String?
+    /// Where `dateOfBirth` came from. `nil` when there's no `dateOfBirth`, or for summaries
+    /// from gmrtd releases before 1.6.0.
+    public let dateOfBirthSource: DateOfBirthSource?
     public let dateOfBirthMrzRaw: String?
     public let dateOfBirthDg11Raw: String?
 
-    /// Set only when `dateOfBirth` has an explicit century (DG11's 8-digit
-    /// `FullDateOfBirth`). See `possibleAges` for the ambiguous DG1-MRZ-only case.
+    /// Set only when `dateOfBirth` has an explicit century (8-digit YYYYMMDD: DG11's
+    /// `FullDateOfBirth`, or an MRZ date of birth whose century the issuer's data determines
+    /// - see `dateOfBirthSource`). See `possibleAges` for the ambiguous DG1-MRZ-only case.
     public let age: Int?
     /// Candidate ages when `dateOfBirth`'s century is ambiguous (DG1-MRZ-only, 6-digit
     /// YYMMDD), ordered youngest to oldest. Empty whenever `age` is set.
