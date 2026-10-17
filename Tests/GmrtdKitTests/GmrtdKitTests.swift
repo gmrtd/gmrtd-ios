@@ -177,6 +177,24 @@ struct GmrtdKitTests {
         #expect(absent.expired == nil)
     }
 
+    // `dateOfBirthSource` is omitempty on the Go side and absent from summaries produced
+    // before gmrtd 1.6.0, so it must decode when present, absent or unknown.
+    @Test func identityAttributesDateOfBirthSourceDecodesAllShapes() throws {
+        func decode(_ identityJson: String) throws -> IdentityAttributes? {
+            let json = #"{"dataTrusted":true,"chipAuthenticity":0,"identityAttributes":\#(identityJson)}"#
+            return try DocumentSummary(jsonData: Data(json.utf8)).identityAttributes
+        }
+
+        let sg = try #require(try decode(#"{"dateOfBirth":"19640812","dateOfBirthSource":"DG1_MRZ_SG_NRIC","dateOfBirthMrzRaw":"640812","age":62}"#))
+        #expect(sg.dateOfBirthSource == .dg1MrzSgNric)
+        #expect(sg.dateOfBirth == "19640812")
+        #expect(sg.dateOfBirthMrzRaw == "640812")
+        #expect(try decode(#"{"dateOfBirthSource":"DG11"}"#)?.dateOfBirthSource == .dg11)
+        #expect(try decode(#"{"dateOfBirthSource":"DG1_MRZ"}"#)?.dateOfBirthSource == .dg1Mrz)
+        #expect(try decode(#"{"dateOfBirthSource":"SOMETHING_NEW"}"#)?.dateOfBirthSource == .other("SOMETHING_NEW"))
+        #expect(try decode(#"{"dateOfBirth":"740812"}"#)?.dateOfBirthSource == nil)
+    }
+
     @Test func missingCborProducesMissingCborError() {
         let result = DocumentJsonRegenerator.regenerate(fromCbor: nil)
         switch result {
