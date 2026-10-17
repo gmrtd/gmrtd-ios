@@ -236,7 +236,9 @@ public final class MRTDReader: NSObject, @unchecked Sendable {
                     #if DEBUG
                     print("gmrtd.readDocument error: \(error)")
                     #endif
-                    return .failure(MRTDReadError.classify(error))
+                    return .failure(MRTDReadError.classify(error).withRejectedSummary {
+                        try self.gmrtdReader?.rejectedDocument()?.summaryJson()
+                    })
                 }
 
                 var gmrtdSummary: DocumentSummary?

@@ -81,7 +81,14 @@ reader.read(credential: credential) { result in
 
 `MRTDReadOptions` lets you skip PACE or image data groups, fall back to BAC if PACE is attempted and fails, raise the max APDU length for extended-length-capable chips, and supply an Active Authentication challenge (see [Security notes](#security-notes) below).
 
-Set `requireAuthenticDocument` to fail the read with `.notAuthentic` unless the document is verifiably authentic: Passive Authentication must succeed, and if Active Authentication, Chip Authentication or PACE-CAM was attempted, at least one must have verifiably succeeded. A document offering none of them passes when its data is trusted. No document is returned with the error.
+Set `requireAuthenticDocument` to fail the read with `.notAuthentic` unless the document is verifiably authentic: Passive Authentication must succeed, and if Active Authentication, Chip Authentication or PACE-CAM was attempted, at least one must have verifiably succeeded. A document offering none of them passes when its data is trusted. The error carries the rejected document's summary, so you can show the user why it was rejected (e.g. its trust chain, below):
+
+```swift
+if case .notAuthentic(_, let summary?) = error {
+    // NOT authentic: present as rejected, never as an accepted document
+    showRejected(summary.passiveAuth)
+}
+```
 
 ### Showing the trust chain
 
