@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0](https://github.com/gmrtd/gmrtd-ios/compare/v1.2.2...v1.3.0) (2026-10-17)
+
+
+### Features
+
+* expose IdentityAttributes.dateOfBirthSource (gmrtd 1.6.0) ([#45](https://github.com/gmrtd/gmrtd-ios/issues/45)) ([733c21f](https://github.com/gmrtd/gmrtd-ios/commit/733c21fbb3ed0e8ce131ff2cba9754e6a329a2cd))
+
+
+### Bug Fixes
+
+* bump gmrtd core to v1.6.0 ([#46](https://github.com/gmrtd/gmrtd-ios/issues/46)) ([009c766](https://github.com/gmrtd/gmrtd-ios/commit/009c7660afe1c4bad6f3a3b33a446c958f06dab3))
+
 ## [1.2.2](https://github.com/gmrtd/gmrtd-ios/compare/v1.2.1...v1.2.2) (2026-10-17)
 
 
