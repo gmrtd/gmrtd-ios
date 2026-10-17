@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0](https://github.com/gmrtd/gmrtd-ios/compare/v1.1.0...v1.2.0) (2026-10-17)
+
+
+### Features
+
+* attach the rejected document's summary to MRTDReadError.notAuthentic ([#40](https://github.com/gmrtd/gmrtd-ios/issues/40)) ([ab57469](https://github.com/gmrtd/gmrtd-ios/commit/ab57469098a807a084bb0332dcbcff17b7e26d81))
+* support gmrtd 1.4.0 trust chain, RequireAuthenticDocument and trusted-source re-verification ([#38](https://github.com/gmrtd/gmrtd-ios/issues/38)) ([6b64e81](https://github.com/gmrtd/gmrtd-ios/commit/6b64e816171607dca7c459325d9b209ab655d1cf))
+
+
+### Bug Fixes
+
+* bump gmrtd core to v1.3.2 ([#34](https://github.com/gmrtd/gmrtd-ios/issues/34)) ([886e879](https://github.com/gmrtd/gmrtd-ios/commit/886e879b474371332be32c78a66d80b2a47ca8c0))
+* bump gmrtd core to v1.4.0 ([#37](https://github.com/gmrtd/gmrtd-ios/issues/37)) ([18bacd2](https://github.com/gmrtd/gmrtd-ios/commit/18bacd204ac1e3c9635d1cdfd4c13db8298a3089))
+* bump gmrtd core to v1.5.0 ([#39](https://github.com/gmrtd/gmrtd-ios/issues/39)) ([d5f5a7d](https://github.com/gmrtd/gmrtd-ios/commit/d5f5a7dff98ca92766e708f1eb21afd70368e55e))
+
 ## [1.1.0](https://github.com/gmrtd/gmrtd-ios/compare/v1.0.2...v1.1.0) (2026-09-28)
 
 
