@@ -102,6 +102,67 @@ struct GmrtdKitTests {
         #expect((identity.personsToNotify?.count ?? 0) > 0)
     }
 
+    // Passive Authentication fails for the sample document, so its trust chain only holds
+    // the (unverified) document signer embedded in its EF.SOD.
+    @Test func sampleDocumentSummaryDecodesPassiveAuthTrustChain() throws {
+        let sample = try SampleDocument.load()
+        let summary = try #require(sample.summary)
+        let passiveAuth = try #require(summary.passiveAuth)
+
+        #expect(passiveAuth.status == .failed)
+        #expect(passiveAuth.error != nil)
+        #expect(passiveAuth.cardSecurity == nil)
+
+        let sod = try #require(passiveAuth.sod)
+        #expect(sod.verified == false)
+        let chain = try #require(sod.chain)
+        #expect(chain.count == 1)
+
+        let signer = try #require(chain.first)
+        #expect(signer.role == .documentSigner)
+        #expect(signer.subject == "CN=DS-AUSTRIA-eMRTD, SERIALNUMBER=004015, OU=BMI, O=GV, C=AT")
+        #expect(signer.issuer == "CN=CSCA-AUSTRIA, OU=BMI, O=GV, C=AT")
+        #expect(signer.keyType == "EC(BrainpoolP256r1)")
+        #expect(signer.ca == false)
+        #expect(signer.notBefore == ISO8601DateFormatter().date(from: "2023-01-31T08:04:02Z"))
+        #expect(signer.notAfter == ISO8601DateFormatter().date(from: "2033-05-06T08:04:02Z"))
+    }
+
+    @Test func passiveAuthSummaryDecodesAllShapes() throws {
+        func decode(_ passiveAuthJson: String) throws -> PassiveAuthSummary? {
+            let json = #"{"dataTrusted":true,"chipAuthenticity":0,"passiveAuth":\#(passiveAuthJson)}"#
+            return try DocumentSummary(jsonData: Data(json.utf8)).passiveAuth
+        }
+
+        let verified = try #require(try decode(#"""
+            {"status":"VERIFIED","sod":{"verified":true,"chain":[
+              {"role":"DOCUMENT_SIGNER","expired":true,"notAfter":"2022-12-01T01:25:53Z","fingerprintSha256":"AB","ca":false},
+              {"role":"CSCA_LINK","notBefore":"2016-09-09T00:00:00.5Z","fingerprintSha256":"CD","ca":true},
+              {"role":"FUTURE_ROLE","fingerprintSha256":"EF","ca":true}]},
+             "cardSecurity":{"verified":false}}
+            """#))
+        #expect(verified.status == .verified)
+        let chain = try #require(verified.sod?.chain)
+        #expect(chain.map(\.role) == [.documentSigner, .cscaLink, .other("FUTURE_ROLE")])
+        #expect(chain[0].expired == true)
+        #expect(chain[0].notAfter == ISO8601DateFormatter().date(from: "2022-12-01T01:25:53Z"))
+        #expect(chain[1].notBefore != nil)
+        #expect(chain[2].expired == nil)
+        #expect(verified.cardSecurity?.verified == false)
+        #expect(verified.cardSecurity?.chain == nil)
+
+        #expect(try decode(#"{"status":"NOT_PERFORMED"}"#)?.status == .notPerformed)
+        #expect(try decode(#"{"status":"SOMETHING_NEW"}"#)?.status == .other("SOMETHING_NEW"))
+
+        // summaries from gmrtd releases before 1.4.0 have no passiveAuth
+        let legacy = try DocumentSummary(jsonData: Data(#"{"dataTrusted":false,"chipAuthenticity":0}"#.utf8))
+        #expect(legacy.passiveAuth == nil)
+
+        #expect(throws: DecodingError.self) {
+            try decode(#"{"status":"VERIFIED","sod":{"verified":true,"chain":[{"role":"CSCA","notAfter":"not a date"}]}}"#)
+        }
+    }
+
     // `expired` is omitempty on the Go side (nil when expiry can't be determined), so an
     // absent key must decode to nil rather than failing the whole summary.
     @Test func identityAttributesExpiredDecodesWhenPresentOrAbsent() throws {
@@ -147,6 +208,22 @@ struct GmrtdKitTests {
         }
     }
 
+    @Test func regenerationSucceedsForATrustedSource() throws {
+        // The sample document has no chip authentication evidence, so trusting the source
+        // can't raise chipAuthenticity — this confirms withTrustedSource is wired through.
+        let sample = try SampleDocument.load()
+        let cbor = try #require(sample.cborData)
+
+        let result = DocumentJsonRegenerator.regenerate(fromCbor: cbor, trustedSource: true)
+        switch result {
+        case let .success(regenerated):
+            #expect(regenerated.summary.chipAuthenticity == .none)
+            #expect(regenerated.technicalJson.contains(#""trustedSource":true"#))
+        case let .failure(error):
+            Issue.record("regeneration failed: \(error)")
+        }
+    }
+
     @Test func wrongLengthChallengeProducesVerificationFailedError() throws {
         let sample = try SampleDocument.load()
         let cbor = try #require(sample.cborData)
@@ -161,6 +238,20 @@ struct GmrtdKitTests {
                 return
             }
         }
+    }
+
+    // MARK: - MRTDReadError classification
+
+    @Test func notAuthenticErrorIsClassifiedFromGmrtdMessage() {
+        let msg = "[ReadDocument] runSteps error: [runSteps] error: [checkAuthenticDocument] document is not authentic: data not trusted: PA failed"
+        let error = MRTDReadError.classify(NSError(domain: "go", code: 1, userInfo: [NSLocalizedDescriptionKey: msg]))
+        #expect(error == .notAuthentic(underlying: msg))
+        #expect(error.underlying == msg)
+    }
+
+    @Test func requireAuthenticDocumentDefaultsToOff() {
+        #expect(MRTDReadOptions().requireAuthenticDocument == false)
+        #expect(MRTDReadOptions(requireAuthenticDocument: true).requireAuthenticDocument == true)
     }
 
     @Test func readRejectsWrongLengthCallerSuppliedChallengeBeforeStartingASession() async {

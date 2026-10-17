@@ -34,7 +34,15 @@ public enum DocumentJsonRegenerator {
     ///   of session — see the `withAAChallenge` doc comment on the Gmrtd side. As with
     ///   the read side, real relay-attack protection requires this to be a challenge
     ///   the verifying party itself issued, not one generated on the reading device.
-    public static func regenerate(fromCbor cborData: Data?, aaChallenge: Data? = nil) -> Result<RegeneratedDocument, DocumentJsonRegenerationError> {
+    /// - Parameter trustedSource: Whether the CBOR was captured by a reader you trust —
+    ///   typically this app itself, with the CBOR stored where nothing else could have
+    ///   altered or substituted it. Replayed Chip Authentication and PACE-CAM evidence
+    ///   can be produced by anyone holding the capturing reader's ephemeral keys, so it
+    ///   can't prove the chip was present; by default (`false`) the summary's
+    ///   `chipAuthenticity` therefore only reports Active Authentication bound to
+    ///   `aaChallenge`. Set `true` only for evidence from a trusted reader, e.g. when
+    ///   redisplaying this app's own saved scan; never for CBOR received from elsewhere.
+    public static func regenerate(fromCbor cborData: Data?, aaChallenge: Data? = nil, trustedSource: Bool = false) -> Result<RegeneratedDocument, DocumentJsonRegenerationError> {
         guard let cborData else { return .failure(.missingCbor) }
         return GmrtdGoRuntime.serialized {
             guard var verifier = GmrtdMobileNewVerifier() else {
@@ -43,6 +51,9 @@ public enum DocumentJsonRegenerator {
             do {
                 if let aaChallenge {
                     verifier = try verifier.withAAChallenge(aaChallenge) ?? verifier
+                }
+                if trustedSource {
+                    verifier = verifier.withTrustedSource() ?? verifier
                 }
                 let doc = try verifier.verify(cborData)
                 let technicalData = try doc.documentExJson()

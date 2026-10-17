@@ -20,6 +20,11 @@ public enum MRTDReadError: Error, Equatable, Sendable {
     case notDetected(underlying: String)
     case interrupted(underlying: String)
     case unsupported(underlying: String)
+    /// `MRTDReadOptions.requireAuthenticDocument` was set and the document isn't
+    /// verifiably authentic: Passive Authentication failed, or chip authentication was
+    /// attempted and none verifiably succeeded. The chip was read; it just can't be
+    /// trusted, so retrying won't help.
+    case notAuthentic(underlying: String)
     /// `MRTDReadOptions.aaChallenge` was provided but isn't exactly 8 bytes.
     /// Caught before the NFC session starts — a caller/integration error, not a
     /// chip/session failure.
@@ -37,7 +42,8 @@ public enum MRTDReadError: Error, Equatable, Sendable {
     /// change wording across OS/library versions.
     public var underlying: String? {
         switch self {
-        case .notDetected(let underlying), .interrupted(let underlying), .unsupported(let underlying), .summaryDecodingFailed(let underlying):
+        case .notDetected(let underlying), .interrupted(let underlying), .unsupported(let underlying),
+             .notAuthentic(let underlying), .summaryDecodingFailed(let underlying):
             return underlying
         case .invalidAAChallenge:
             return nil
@@ -51,6 +57,10 @@ public enum MRTDReadError: Error, Equatable, Sendable {
         }
         if msg.contains("Unsupported NFC tag") {
             return .unsupported(underlying: msg)
+        }
+        // gmrtd's reader.ErrDocumentNotAuthentic (RequireAuthenticDocument)
+        if msg.contains("document is not authentic") {
+            return .notAuthentic(underlying: msg)
         }
         // Catches: "Connection error:", "Error reading document",
         // semaphore/watchdog timeout, and any other mid-read failure.

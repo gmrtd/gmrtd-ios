@@ -70,7 +70,8 @@ reader.read(credential: credential) { result in
         // readResult.summary, readResult.cborData
         break
     case .failure(let error):
-        // MRTDReadError: .notDetected, .interrupted, .unsupported, .invalidAAChallenge
+        // MRTDReadError: .notDetected, .interrupted, .unsupported, .notAuthentic,
+        // .invalidAAChallenge, .summaryDecodingFailed
         print(error.underlying ?? error)
     }
 }
@@ -79,6 +80,22 @@ reader.read(credential: credential) { result in
 `read(credential:options:completion:)` must be called from the main thread; `reader.cancel()` is safe to call from any thread (e.g. a caller-side watchdog timer).
 
 `MRTDReadOptions` lets you skip PACE or image data groups, fall back to BAC if PACE is attempted and fails, raise the max APDU length for extended-length-capable chips, and supply an Active Authentication challenge (see [Security notes](#security-notes) below).
+
+Set `requireAuthenticDocument` to fail the read with `.notAuthentic` unless the document is verifiably authentic: Passive Authentication must succeed, and if Active Authentication, Chip Authentication or PACE-CAM was attempted, at least one must have verifiably succeeded. A document offering none of them passes when its data is trusted. No document is returned with the error.
+
+### Showing the trust chain
+
+`summary.passiveAuth` describes the Passive Authentication result for display: its `status` (`.verified`, `.failed`, `.notPerformed`), `error`, and for EF.SOD and EF.CardSecurity the certificate `chain` — each certificate's `role` (`.documentSigner`, `.csca`, `.cscaLink`), subject, issuer, validity, key type, signature algorithm, serial, SKI/AKI and SHA-256 fingerprint:
+
+```swift
+if let sod = readResult.summary?.passiveAuth?.sod {
+    for cert in sod.chain ?? [] {
+        print(cert.role, cert.subject ?? "?", cert.notAfter.map { "\($0)" } ?? "?")
+    }
+}
+```
+
+When `sod.verified` is false, `chain` only holds the document signer certificate embedded in the document. It is chip-supplied and **unverified** — show it as "claims to be signed by", never as trusted. `expired` is informational: verification is at the time of signing, so expired certificates are normal for older documents.
 
 ### Locating and validating an MRZ (e.g. from OCR)
 
@@ -106,6 +123,12 @@ case .failure(let error):
 }
 ```
 
+Re-verification treats the CBOR as coming from an **untrusted** source by default, so `summary.chipAuthenticity` only reports Active Authentication bound to the `aaChallenge` you pass back: replayed Chip Authentication and PACE-CAM evidence can't prove the chip was present (see [Security notes](#security-notes)). When redisplaying a scan this app captured itself and stored securely, pass `trustedSource: true` to count that evidence as it was at read time:
+
+```swift
+DocumentJsonRegenerator.regenerate(fromCbor: savedCborData, aaChallenge: savedChallenge, trustedSource: true)
+```
+
 ### Preloading the CSCA trust anchor pool
 
 Verifying document signatures needs the CSCA certificate pool, which is loaded lazily on first use. To keep that cost off the critical path of a live NFC read, preload it once at app startup, off the main thread:
@@ -119,6 +142,8 @@ DispatchQueue.global(qos: .utility).async {
 ## Security notes
 
 `MRTDReadOptions.aaChallenge` / `DocumentJsonRegenerator.regenerate(aaChallenge:)` let you bind a read to an Active Authentication challenge (RND.IFD). **For real relay-attack protection, that challenge must be issued by whoever will verify the evidence** — typically your backend, freshly generated per verification request — not generated on the reading device. If you leave `aaChallenge` unset, GmrtdKit generates its own random challenge locally; that's enough to bind a read to its own later on-device re-verification, but a self-generated challenge proves nothing to an independent third-party verifier, since nothing stops the same app from choosing a challenge to match evidence it already captured.
+
+Chip Authentication and PACE-CAM only prove the chip to the reader that ran the session: anyone holding that reader's ephemeral keys can reproduce the captured evidence. So when CBOR is verified elsewhere (e.g. on your backend with gmrtd's `verifier`, or via `regenerate` without `trustedSource`), only Active Authentication bound to a verifier-issued challenge establishes chip authenticity. Use `trustedSource: true` only for evidence from a reader you trust, never for CBOR received from elsewhere.
 
 ## Apps using GmrtdKit
 
