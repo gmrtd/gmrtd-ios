@@ -3,8 +3,8 @@ import PackageDescription
 
 // Bumped by the automated gmrtd-release-tracking job — keep this exact
 // `let name = "value"` shape so the bot can locate/replace by regex.
-let gmrtdCoreVersion = "1.7.0"
-let gmrtdCoreChecksum = "c81e1dce9cf06364fe9088753e8ac0b6e1a6b12cb24af99f7e567f4cf8b42cdd"
+let gmrtdCoreVersion = "1.7.1"
+let gmrtdCoreChecksum = "1f3dcb7269db41b005fb4f98405202e5b7840af2f11f3bbabff9c612eba469b3"
 
 let package = Package(
     name: "GmrtdKit",
