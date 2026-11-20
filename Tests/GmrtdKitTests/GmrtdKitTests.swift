@@ -305,6 +305,23 @@ struct GmrtdKitTests {
         #expect(fetched == false)
     }
 
+    @Test func everyReadErrorHasANonEmptySheetMessage() {
+        let errors: [MRTDReadError] = [
+            .notDetected(underlying: "x"),
+            .interrupted(underlying: "x"),
+            .unsupported(underlying: "x"),
+            .notAuthentic(underlying: "x", summary: nil),
+            .invalidAAChallenge,
+            .summaryDecodingFailed(underlying: "x"),
+        ]
+        for error in errors {
+            #expect(!error.sheetMessage.isEmpty)
+        }
+        // A tag lost mid-read (the common failure) gets a retry hint, not a generic message.
+        #expect(MRTDReadError.classify(NSError(domain: "t", code: 0, userInfo: [NSLocalizedDescriptionKey: "Tag connection lost"]))
+                    .sheetMessage == "Connection to the document lost. Please try again.")
+    }
+
     @Test func requireAuthenticDocumentDefaultsToOff() {
         #expect(MRTDReadOptions().requireAuthenticDocument == false)
         #expect(MRTDReadOptions(requireAuthenticDocument: true).requireAuthenticDocument == true)
