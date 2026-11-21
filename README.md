@@ -70,8 +70,9 @@ reader.read(credential: credential) { result in
         // readResult.summary, readResult.cborData
         break
     case .failure(let error):
-        // MRTDReadError: .notDetected, .interrupted, .unsupported, .notAuthentic,
-        // .invalidAAChallenge, .summaryDecodingFailed
+        // MRTDReadError: .notDetected, .interrupted, .unsupported, .accessDenied
+        // (wrong MRZ/CAN), .credentialNotUsable (e.g. a CAN without PACE),
+        // .notAuthentic, .invalidAAChallenge, .summaryDecodingFailed
         print(error.underlying ?? error)
     }
 }
@@ -80,6 +81,8 @@ reader.read(credential: credential) { result in
 `read(credential:options:completion:)` must be called from the main thread; `reader.cancel()` is safe to call from any thread (e.g. a caller-side watchdog timer).
 
 `MRTDReadOptions` lets you skip PACE or image data groups, fall back to BAC if PACE is attempted and fails, raise the max APDU length for extended-length-capable chips, and supply an Active Authentication challenge (see [Security notes](#security-notes) below).
+
+Access control always fails closed: if PACE or BAC is refused (usually a wrong MRZ or CAN) the read fails with `.accessDenied`, and if no access control can run with the credential, the read fails with `.credentialNotUsable` before anything is read. BAC needs the MRZ, so a `.can` credential only works with PACE: with `skipPace`, on a chip without usable PACE, or when PACE fails under `allowBacFallbackOnPaceError`, use the MRZ instead.
 
 Set `requireAuthenticDocument` to fail the read with `.notAuthentic` unless the document is verifiably authentic: Passive Authentication must succeed, and if Active Authentication, Chip Authentication or PACE-CAM was attempted, at least one must have verifiably succeeded. A document offering none of them passes when its data is trusted. The error carries the rejected document's summary, so you can show the user why it was rejected (e.g. its trust chain, below):
 
