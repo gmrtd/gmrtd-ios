@@ -104,11 +104,15 @@ reader.alertMessageProvider = { message in
     case .noTagFound: return String(localized: "No NFC tag found.")
     case .connectionError: return String(localized: "Connection lost. Please try again.")
     case .unsupportedTag: return String(localized: "This is not a supported document.")
+    case .readFailed(.notAuthentic): return String(localized: "This document could not be verified.")
+    case .readFailed: return String(localized: "Reading failed. Please try again.")
+    case .cancelled: return String(localized: "Reading cancelled.")
+    default: return nil // new cases may be added; keep the built-in text for them
     }
 }
 ```
 
-`MRTDAlertMessage` covers every message GmrtdKit puts on the sheet; `message.defaultMessage` gives the built-in English text. The provider is called on the main thread.
+`MRTDAlertMessage` covers every message GmrtdKit puts on the sheet; `message.defaultMessage` gives the built-in English text. New cases may be added in future releases, so end the `switch` with `default: return nil` rather than listing every case. The provider is called on the main thread.
 
 ### Showing the trust chain
 

@@ -119,9 +119,18 @@ public final class MRTDReader: NSObject, @unchecked Sendable {
     /// Cancels an in-flight read, e.g. from a caller-side watchdog timeout. Safe to
     /// call from any thread. The completion handler passed to `read` is still called,
     /// with `.failure(.interrupted)`, once the session finishes invalidating. The NFC
-    /// sheet shows its error state with "Reading cancelled.", not the success checkmark.
+    /// sheet shows its error state with the `.cancelled` alert message, not the success
+    /// checkmark.
     public func cancel() {
-        withState { $0.session }?.invalidate(errorMessage: "Reading cancelled.")
+        // Captured now rather than inside the dispatch, so a read started in the meantime
+        // isn't the one cancelled; the dispatch keeps alertMessageProvider on the main thread.
+        let session = withState { $0.session }
+        let invalidate: () -> Void = { session?.invalidate(errorMessage: self.alertText(for: .cancelled)) }
+        if Thread.isMainThread {
+            invalidate()
+        } else {
+            DispatchQueue.main.async { invalidate() }
+        }
     }
 
     /// Calls `completionHandler` exactly once and clears it, `credential` (which may
@@ -311,7 +320,7 @@ public final class MRTDReader: NSObject, @unchecked Sendable {
                 DispatchQueue.main.async {
                     // Must pass an error message: a bare `invalidate()` makes iOS show the
                     // sheet's success checkmark (and success feedback) for a failed read.
-                    self.withState { $0.session }?.invalidate(errorMessage: error.sheetMessage)
+                    self.withState { $0.session }?.invalidate(errorMessage: self.alertText(for: .readFailed(error)))
                     self.claimCompletionHandler()?(.failure(error))
                 }
             }
