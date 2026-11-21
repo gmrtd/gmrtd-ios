@@ -267,6 +267,25 @@ struct GmrtdKitTests {
         #expect(error.underlying == msg)
     }
 
+    @Test func readErrorsAreClassifiedFromGmrtdLastReadError() {
+        let gmrtdError = { (msg: String) in NSError(domain: "go", code: 1, userInfo: [NSLocalizedDescriptionKey: msg]) }
+        let bacFailed = "[ReadDocument] runSteps error: [runSteps] error: [performBac] BAC failed: [DoBAC] ExternalAuthenticate error"
+        let noSM = "[ReadDocument] runSteps error: [runSteps] error: [performBac] no secure messaging established after access control (BAC requires an MRZ password)"
+        let notAuthentic = "[ReadDocument] runSteps error: [runSteps] error: [checkAuthenticDocument] document is not authentic: data not trusted"
+        let lostTag = "[ReadDocument] runSteps error: [runSteps] error: [readEfSod] Tag connection lost"
+        // gmrtd's mobile.READ_ERROR_* values, which are a fixed contract (pinned by its TestReadErrorValues)
+        let (none, other, accessControlFailed, noSecureMessaging, documentNotAuthentic) = (0, 1, 2, 3, 4)
+
+        #expect(MRTDReadError.classify(gmrtdError(bacFailed), readError: accessControlFailed) == .accessDenied(underlying: bacFailed))
+        #expect(MRTDReadError.classify(gmrtdError(noSM), readError: noSecureMessaging) == .credentialNotUsable(underlying: noSM))
+        #expect(MRTDReadError.classify(gmrtdError(notAuthentic), readError: documentNotAuthentic) == .notAuthentic(underlying: notAuthentic, summary: nil))
+        // codes that don't name a cause fall back to the text match
+        #expect(MRTDReadError.classify(gmrtdError(lostTag), readError: other) == .interrupted(underlying: lostTag))
+        #expect(MRTDReadError.classify(gmrtdError(notAuthentic), readError: none) == .notAuthentic(underlying: notAuthentic, summary: nil))
+        #expect(MRTDReadError.accessDenied(underlying: bacFailed).underlying == bacFailed)
+        #expect(MRTDReadError.credentialNotUsable(underlying: noSM).underlying == noSM)
+    }
+
     static let rejectedSummaryJson = Data("""
         {"dataTrusted":false,"chipAuthenticity":0,"passiveAuth":{"status":"FAILED","error":"PA failed","sod":{"verified":false}}}
         """.utf8)
@@ -343,6 +362,8 @@ struct GmrtdKitTests {
             .notDetected(underlying: "x"),
             .interrupted(underlying: "x"),
             .unsupported(underlying: "x"),
+            .accessDenied(underlying: "x"),
+            .credentialNotUsable(underlying: "x"),
             .notAuthentic(underlying: "x", summary: nil),
             .invalidAAChallenge,
             .summaryDecodingFailed(underlying: "x"),
@@ -350,10 +371,9 @@ struct GmrtdKitTests {
         for error in errors {
             #expect(!reader.alertText(for: .readFailed(error)).isEmpty)
         }
-        // A tag lost mid-read classifies as `.interrupted`, which also covers a wrong MRZ/CAN,
-        // so its text must not claim the connection was lost
         let lostTag = MRTDReadError.classify(NSError(domain: "t", code: 0, userInfo: [NSLocalizedDescriptionKey: "Tag connection lost"]))
-        #expect(reader.alertText(for: .readFailed(lostTag)) == "Reading the document failed. Please try again.")
+        #expect(reader.alertText(for: .readFailed(lostTag)) == "Reading was interrupted. Please try again.")
+        #expect(reader.alertText(for: .readFailed(.accessDenied(underlying: "x"))) == "Access denied. Check the MRZ or CAN.")
         #expect(reader.alertText(for: .readFailed(.notAuthentic(underlying: "x", summary: nil))) == "Document could not be verified.")
         #expect(reader.alertText(for: .cancelled) == "Reading cancelled.")
     }

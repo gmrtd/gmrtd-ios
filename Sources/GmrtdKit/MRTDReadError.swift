@@ -4,22 +4,31 @@
 //
 
 import Foundation
+import Gmrtd
 
-/// Typed NFC/MRTD read errors, classified from raw library/session error strings.
-/// notDetected = chip not detected (positioning), interrupted = read cut short
-/// (motion/signal/timeout), unsupported = chip type not recognised.
+/// Typed NFC/MRTD read errors. notDetected = chip not detected (positioning),
+/// interrupted = read cut short (motion/signal/timeout), unsupported = chip type not
+/// recognised, accessDenied = wrong MRZ/CAN, credentialNotUsable = the credential
+/// can't be used with this document or these options.
 ///
-/// Classification itself is necessarily a best-effort text match — CoreNFC session
-/// errors and the underlying gmrtd/Go library both only ever surface a plain message,
-/// not a typed code, so a wording change on either side could shift a case's
-/// classification. Each case below (other than `invalidAAChallenge`, which is raised
-/// directly by this package) carries that original message via `underlying`, so a
-/// misclassification is still diagnosable from logs/analytics rather than losing the
-/// detail behind a generic case name.
+/// gmrtd's own read failures are classified from its typed `lastReadError()` code.
+/// Everything else (CoreNFC session errors, and gmrtd failures it doesn't type) is a
+/// best-effort text match, as those only surface a plain message, so a wording change
+/// on either side could shift a case's classification. Each case below (other than
+/// `invalidAAChallenge`, which is raised directly by this package) carries that original
+/// message via `underlying`, so a misclassification is still diagnosable from
+/// logs/analytics rather than losing the detail behind a generic case name.
 public enum MRTDReadError: Error, Equatable, Sendable {
     case notDetected(underlying: String)
     case interrupted(underlying: String)
     case unsupported(underlying: String)
+    /// PACE or BAC was attempted and the chip refused it, most often because the MRZ or
+    /// CAN doesn't match the document. Retrying with the same credential won't help.
+    case accessDenied(underlying: String)
+    /// No access control could run with this credential, so nothing was read: BAC needs
+    /// the MRZ, so a `.can` credential fails when PACE is skipped (`skipPace`), not
+    /// supported by the chip or GmrtdKit, or fails under `allowBacFallbackOnPaceError`.
+    case credentialNotUsable(underlying: String)
     /// `MRTDReadOptions.requireAuthenticDocument` was set and the document isn't
     /// verifiably authentic: Passive Authentication failed, or chip authentication was
     /// attempted and none verifiably succeeded. The chip was read; it just can't be
@@ -47,10 +56,23 @@ public enum MRTDReadError: Error, Equatable, Sendable {
     public var underlying: String? {
         switch self {
         case .notDetected(let underlying), .interrupted(let underlying), .unsupported(let underlying),
+             .accessDenied(let underlying), .credentialNotUsable(let underlying),
              .notAuthentic(let underlying, _), .summaryDecodingFailed(let underlying):
             return underlying
         case .invalidAAChallenge:
             return nil
+        }
+    }
+
+    /// Classifies a failed `readDocument` from gmrtd's `lastReadError()` code, falling
+    /// back to the text match for codes that don't name a specific cause.
+    static func classify(_ error: Error, readError: Int) -> MRTDReadError {
+        let msg = error.localizedDescription
+        switch readError {
+        case GmrtdMobileREAD_ERROR_ACCESS_CONTROL_FAILED: return .accessDenied(underlying: msg)
+        case GmrtdMobileREAD_ERROR_NO_SECURE_MESSAGING: return .credentialNotUsable(underlying: msg)
+        case GmrtdMobileREAD_ERROR_DOCUMENT_NOT_AUTHENTIC: return .notAuthentic(underlying: msg, summary: nil)
+        default: return classify(error)
         }
     }
 

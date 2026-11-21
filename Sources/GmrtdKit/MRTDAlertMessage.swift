@@ -44,11 +44,10 @@ public enum MRTDAlertMessage: Sendable, Equatable {
     private static func defaultMessage(for error: MRTDReadError) -> String {
         switch error {
         case .notDetected: return "No document detected. Please try again."
-        // Deliberately neutral: classification can't yet tell a lost connection from a
-        // wrong MRZ/CAN (both surface as `.interrupted`), and "connection lost" would send
-        // a user with the wrong MRZ/CAN round the same failing retry.
-        case .interrupted: return "Reading the document failed. Please try again."
+        case .interrupted: return "Reading was interrupted. Please try again."
         case .unsupported: return "Unsupported document."
+        case .accessDenied: return "Access denied. Check the MRZ or CAN."
+        case .credentialNotUsable: return "This document can't be read with the CAN. Use the MRZ instead."
         case .notAuthentic: return "Document could not be verified."
         case .invalidAAChallenge, .summaryDecodingFailed: return "Reading the document failed."
         }

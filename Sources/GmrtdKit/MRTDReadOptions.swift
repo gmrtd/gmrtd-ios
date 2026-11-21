@@ -10,11 +10,15 @@ import Foundation
 /// must be passed in explicitly here.
 public struct MRTDReadOptions: Sendable {
     /// Skips PACE authentication and falls back to BAC even when the chip supports PACE.
+    /// BAC needs the MRZ, so with a `.can` credential the read fails with
+    /// `MRTDReadError.credentialNotUsable`.
     public var skipPace: Bool
     /// Falls back to BAC if PACE is attempted and fails, rather than failing the read.
     /// The underlying reader defaults to fail-closed on a PACE error; set this to opt
     /// into the more permissive behavior. Has no effect when `skipPace` is set, since
-    /// PACE is never attempted in that case.
+    /// PACE is never attempted in that case. BAC itself always fails closed: a failed BAC
+    /// fails the read, and with a `.can` credential (which BAC can't use) the fallback
+    /// fails with `MRTDReadError.credentialNotUsable`.
     public var allowBacFallbackOnPaceError: Bool
     /// Fails the read with `MRTDReadError.notAuthentic` unless the document is verifiably
     /// authentic: its data must be trusted (Passive Authentication succeeded), and if
