@@ -335,6 +335,73 @@ struct GmrtdKitTests {
         }
     }
 
+    // MARK: - NFC sheet alert messages
+
+    @Test func readFailedAndCancelledHaveBuiltInDefaults() {
+        let reader = MRTDReader()
+        let errors: [MRTDReadError] = [
+            .notDetected(underlying: "x"),
+            .interrupted(underlying: "x"),
+            .unsupported(underlying: "x"),
+            .notAuthentic(underlying: "x", summary: nil),
+            .invalidAAChallenge,
+            .summaryDecodingFailed(underlying: "x"),
+        ]
+        for error in errors {
+            #expect(!reader.alertText(for: .readFailed(error)).isEmpty)
+        }
+        // A tag lost mid-read classifies as `.interrupted`, which also covers a wrong MRZ/CAN,
+        // so its text must not claim the connection was lost
+        let lostTag = MRTDReadError.classify(NSError(domain: "t", code: 0, userInfo: [NSLocalizedDescriptionKey: "Tag connection lost"]))
+        #expect(reader.alertText(for: .readFailed(lostTag)) == "Reading the document failed. Please try again.")
+        #expect(reader.alertText(for: .readFailed(.notAuthentic(underlying: "x", summary: nil))) == "Document could not be verified.")
+        #expect(reader.alertText(for: .cancelled) == "Reading cancelled.")
+    }
+
+    @Test func alertMessageProviderCanOverrideReadFailedPerError() {
+        let reader = MRTDReader()
+        reader.alertMessageProvider = { message in
+            switch message {
+            case .readFailed(.notAuthentic): return "Dokument nicht verifizierbar."
+            case .cancelled: return "Abgebrochen."
+            default: return nil
+            }
+        }
+        #expect(reader.alertText(for: .readFailed(.notAuthentic(underlying: "x", summary: nil))) == "Dokument nicht verifizierbar.")
+        #expect(reader.alertText(for: .cancelled) == "Abgebrochen.")
+        #expect(reader.alertText(for: .readFailed(.invalidAAChallenge)) == "Reading the document failed.")
+    }
+
+    @Test func alertMessagesFallBackToBuiltInDefaultsWithoutAProvider() {
+        let reader = MRTDReader()
+        #expect(reader.alertText(for: .holdNearReader) == "Hold your document near the NFC reader.")
+        #expect(reader.alertText(for: .status(.pace)) == MRTDReadStatus.pace.defaultMessage)
+        #expect(reader.alertText(for: .status(.readingDataGroup(2))) == "Reading photo…")
+        #expect(reader.alertText(for: .noTagFound) == "No NFC tag found.")
+        #expect(reader.alertText(for: .connectionError(underlying: "boom")) == "Connection error: boom")
+        #expect(reader.alertText(for: .unsupportedTag) == "Unsupported NFC tag type.")
+    }
+
+    @Test func alertMessageProviderOverridesTextAndNilKeepsTheDefault() {
+        let reader = MRTDReader()
+        reader.alertMessageProvider = { message in
+            switch message {
+            case .holdNearReader: return "Halten Sie das Dokument an das Gerät."
+            case .status(.readingDataGroup(let dg)): return "Lese Datengruppe \(dg)…"
+            case .connectionError(let underlying): return "Verbindungsfehler: \(underlying)"
+            default: return nil
+            }
+        }
+        #expect(reader.alertText(for: .holdNearReader) == "Halten Sie das Dokument an das Gerät.")
+        #expect(reader.alertText(for: .status(.readingDataGroup(14))) == "Lese Datengruppe 14…")
+        #expect(reader.alertText(for: .connectionError(underlying: "x")) == "Verbindungsfehler: x")
+        #expect(reader.alertText(for: .status(.bac)) == MRTDReadStatus.bac.defaultMessage)
+        #expect(reader.alertText(for: .unsupportedTag) == "Unsupported NFC tag type.")
+
+        reader.alertMessageProvider = nil
+        #expect(reader.alertText(for: .holdNearReader) == "Hold your document near the NFC reader.")
+    }
+
     // MARK: - Library version
 
     // Bumped by the automated gmrtd-release-tracking job alongside `gmrtdCoreVersion`
