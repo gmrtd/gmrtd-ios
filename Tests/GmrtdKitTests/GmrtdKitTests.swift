@@ -354,6 +354,39 @@ struct GmrtdKitTests {
 
     // MARK: - NFC sheet alert messages
 
+    @Test func readFailedAndCancelledHaveBuiltInDefaults() {
+        let reader = MRTDReader()
+        let errors: [MRTDReadError] = [
+            .notDetected(underlying: "x"),
+            .interrupted(underlying: "x"),
+            .unsupported(underlying: "x"),
+            .notAuthentic(underlying: "x", summary: nil),
+            .invalidAAChallenge,
+            .summaryDecodingFailed(underlying: "x"),
+        ]
+        for error in errors {
+            #expect(!reader.alertText(for: .readFailed(error)).isEmpty)
+        }
+        // `.interrupted` also covers a wrong MRZ/CAN, so it must not claim the connection was lost
+        #expect(reader.alertText(for: .readFailed(.interrupted(underlying: "x"))) == "Reading the document failed. Please try again.")
+        #expect(reader.alertText(for: .readFailed(.notAuthentic(underlying: "x", summary: nil))) == "Document could not be verified.")
+        #expect(reader.alertText(for: .cancelled) == "Reading cancelled.")
+    }
+
+    @Test func alertMessageProviderCanOverrideReadFailedPerError() {
+        let reader = MRTDReader()
+        reader.alertMessageProvider = { message in
+            switch message {
+            case .readFailed(.notAuthentic): return "Dokument nicht verifizierbar."
+            case .cancelled: return "Abgebrochen."
+            default: return nil
+            }
+        }
+        #expect(reader.alertText(for: .readFailed(.notAuthentic(underlying: "x", summary: nil))) == "Dokument nicht verifizierbar.")
+        #expect(reader.alertText(for: .cancelled) == "Abgebrochen.")
+        #expect(reader.alertText(for: .readFailed(.invalidAAChallenge)) == "Reading the document failed.")
+    }
+
     @Test func alertMessagesFallBackToBuiltInDefaultsWithoutAProvider() {
         let reader = MRTDReader()
         #expect(reader.alertText(for: .holdNearReader) == "Hold your document near the NFC reader.")
