@@ -54,19 +54,6 @@ public enum MRTDReadError: Error, Equatable, Sendable {
         }
     }
 
-    /// Text shown on the system NFC sheet when a read fails with this error. Passed to
-    /// `NFCTagReaderSession.invalidate(errorMessage:)` so the sheet shows its error state
-    /// rather than the success checkmark.
-    var sheetMessage: String {
-        switch self {
-        case .notDetected: return "No document detected. Please try again."
-        case .interrupted: return "Connection to the document lost. Please try again."
-        case .unsupported: return "Unsupported document."
-        case .notAuthentic: return "Document could not be verified."
-        case .invalidAAChallenge, .summaryDecodingFailed: return "Reading the document failed."
-        }
-    }
-
     static func classify(_ error: Error) -> MRTDReadError {
         let msg = error.localizedDescription
         if msg.contains("No NFC tag") || msg.contains("not detected") {

@@ -305,23 +305,6 @@ struct GmrtdKitTests {
         #expect(fetched == false)
     }
 
-    @Test func everyReadErrorHasANonEmptySheetMessage() {
-        let errors: [MRTDReadError] = [
-            .notDetected(underlying: "x"),
-            .interrupted(underlying: "x"),
-            .unsupported(underlying: "x"),
-            .notAuthentic(underlying: "x", summary: nil),
-            .invalidAAChallenge,
-            .summaryDecodingFailed(underlying: "x"),
-        ]
-        for error in errors {
-            #expect(!error.sheetMessage.isEmpty)
-        }
-        // A tag lost mid-read (the common failure) gets a retry hint, not a generic message.
-        #expect(MRTDReadError.classify(NSError(domain: "t", code: 0, userInfo: [NSLocalizedDescriptionKey: "Tag connection lost"]))
-                    .sheetMessage == "Connection to the document lost. Please try again.")
-    }
-
     @Test func requireAuthenticDocumentDefaultsToOff() {
         #expect(MRTDReadOptions().requireAuthenticDocument == false)
         #expect(MRTDReadOptions(requireAuthenticDocument: true).requireAuthenticDocument == true)
@@ -367,8 +350,10 @@ struct GmrtdKitTests {
         for error in errors {
             #expect(!reader.alertText(for: .readFailed(error)).isEmpty)
         }
-        // `.interrupted` also covers a wrong MRZ/CAN, so it must not claim the connection was lost
-        #expect(reader.alertText(for: .readFailed(.interrupted(underlying: "x"))) == "Reading the document failed. Please try again.")
+        // A tag lost mid-read classifies as `.interrupted`, which also covers a wrong MRZ/CAN,
+        // so its text must not claim the connection was lost
+        let lostTag = MRTDReadError.classify(NSError(domain: "t", code: 0, userInfo: [NSLocalizedDescriptionKey: "Tag connection lost"]))
+        #expect(reader.alertText(for: .readFailed(lostTag)) == "Reading the document failed. Please try again.")
         #expect(reader.alertText(for: .readFailed(.notAuthentic(underlying: "x", summary: nil))) == "Document could not be verified.")
         #expect(reader.alertText(for: .cancelled) == "Reading cancelled.")
     }
