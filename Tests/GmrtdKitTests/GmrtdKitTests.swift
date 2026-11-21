@@ -335,6 +335,38 @@ struct GmrtdKitTests {
         }
     }
 
+    // MARK: - NFC sheet alert messages
+
+    @Test func alertMessagesFallBackToBuiltInDefaultsWithoutAProvider() {
+        let reader = MRTDReader()
+        #expect(reader.alertText(for: .holdNearReader) == "Hold your document near the NFC reader.")
+        #expect(reader.alertText(for: .status(.pace)) == MRTDReadStatus.pace.defaultMessage)
+        #expect(reader.alertText(for: .status(.readingDataGroup(2))) == "Reading photo…")
+        #expect(reader.alertText(for: .noTagFound) == "No NFC tag found.")
+        #expect(reader.alertText(for: .connectionError(underlying: "boom")) == "Connection error: boom")
+        #expect(reader.alertText(for: .unsupportedTag) == "Unsupported NFC tag type.")
+    }
+
+    @Test func alertMessageProviderOverridesTextAndNilKeepsTheDefault() {
+        let reader = MRTDReader()
+        reader.alertMessageProvider = { message in
+            switch message {
+            case .holdNearReader: return "Halten Sie das Dokument an das Gerät."
+            case .status(.readingDataGroup(let dg)): return "Lese Datengruppe \(dg)…"
+            case .connectionError(let underlying): return "Verbindungsfehler: \(underlying)"
+            default: return nil
+            }
+        }
+        #expect(reader.alertText(for: .holdNearReader) == "Halten Sie das Dokument an das Gerät.")
+        #expect(reader.alertText(for: .status(.readingDataGroup(14))) == "Lese Datengruppe 14…")
+        #expect(reader.alertText(for: .connectionError(underlying: "x")) == "Verbindungsfehler: x")
+        #expect(reader.alertText(for: .status(.bac)) == MRTDReadStatus.bac.defaultMessage)
+        #expect(reader.alertText(for: .unsupportedTag) == "Unsupported NFC tag type.")
+
+        reader.alertMessageProvider = nil
+        #expect(reader.alertText(for: .holdNearReader) == "Hold your document near the NFC reader.")
+    }
+
     // MARK: - Library version
 
     // Bumped by the automated gmrtd-release-tracking job alongside `gmrtdCoreVersion`
