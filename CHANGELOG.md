@@ -3,6 +3,10 @@
 ## [1.4.0](https://github.com/gmrtd/gmrtd-ios/compare/v1.3.1...v1.4.0) (2026-11-21)
 
 
+### ⚠ Behaviour change
+
+* With gmrtd 1.10.0, a read with a wrong MRZ or CAN now fails with `.accessDenied` instead of succeeding with no data read. Apps that `switch` exhaustively over `MRTDReadError` need to handle the new `.accessDenied` and `.credentialNotUsable` cases.
+
 ### Features
 
 * allow localizing NFC sheet messages ([#57](https://github.com/gmrtd/gmrtd-ios/issues/57)) ([cdabdd3](https://github.com/gmrtd/gmrtd-ios/commit/cdabdd345b29d8f9bbe6b80a338a66fc6a046eff))
