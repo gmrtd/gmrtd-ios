@@ -10,7 +10,7 @@ import Gmrtd
 /// `STATUS_PHASE_*` stages (see reader/status.go) rather than a coarser
 /// UI-level grouping, so callers with their own UI can distinguish every
 /// stage the reader actually reports.
-public enum MRTDReadStatus: Sendable {
+public enum MRTDReadStatus: Sendable, Equatable {
     case connecting
     case readingCardAccess
     case pace
@@ -26,7 +26,8 @@ public enum MRTDReadStatus: Sendable {
     case finished
     case other(phase: Int)
 
-    /// Plain-language default, used for the system NFC sheet's alert message.
+    /// Plain-language default, used for the system NFC sheet's alert message unless
+    /// `MRTDReader.alertMessageProvider` supplies its own text for this status.
     /// Callers with their own UI should switch on the case instead.
     public var defaultMessage: String {
         switch self {

@@ -90,6 +90,26 @@ if case .notAuthentic(_, let summary?) = error {
 }
 ```
 
+### Localizing the NFC sheet
+
+The text GmrtdKit shows on the system NFC sheet defaults to English. Set `alertMessageProvider` to supply your own (e.g. localized) text; return `nil` for any message you want to keep the default for:
+
+```swift
+reader.alertMessageProvider = { message in
+    switch message {
+    case .holdNearReader: return String(localized: "Hold your document near the NFC reader.")
+    case .status(.pace), .status(.bac): return String(localized: "Authenticating…")
+    case .status(.readingDataGroup(2)): return String(localized: "Reading photo…")
+    case .status: return String(localized: "Reading chip…")
+    case .noTagFound: return String(localized: "No NFC tag found.")
+    case .connectionError: return String(localized: "Connection lost. Please try again.")
+    case .unsupportedTag: return String(localized: "This is not a supported document.")
+    }
+}
+```
+
+`MRTDAlertMessage` covers every message GmrtdKit puts on the sheet; `message.defaultMessage` gives the built-in English text. The provider is called on the main thread.
+
 ### Showing the trust chain
 
 `summary.passiveAuth` describes the Passive Authentication result for display: its `status` (`.verified`, `.failed`, `.notPerformed`), `error`, and for EF.SOD and EF.CardSecurity the certificate `chain` — each certificate's `role` (`.documentSigner`, `.csca`, `.cscaLink`), subject, issuer, validity, key type, signature algorithm, serial, SKI/AKI and SHA-256 fingerprint:

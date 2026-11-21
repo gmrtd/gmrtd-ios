@@ -29,6 +29,23 @@ public final class MRTDReader: NSObject, @unchecked Sendable {
         get { withState { $0.onChipConnected } }
         set { withState { $0.onChipConnected = newValue } }
     }
+    /// Supplies the text shown on the system NFC sheet, e.g. to localize it. Called on
+    /// the main thread for every message GmrtdKit is about to show; return `nil` to
+    /// keep `message.defaultMessage` (GmrtdKit's built-in English text).
+    ///
+    /// ```swift
+    /// reader.alertMessageProvider = { message in
+    ///     switch message {
+    ///     case .holdNearReader: return String(localized: "nfc.holdNearReader")
+    ///     case .status(.pace), .status(.bac): return String(localized: "nfc.authenticating")
+    ///     default: return nil
+    ///     }
+    /// }
+    /// ```
+    public var alertMessageProvider: (@Sendable (MRTDAlertMessage) -> String?)? {
+        get { withState { $0.alertMessageProvider } }
+        set { withState { $0.alertMessageProvider = newValue } }
+    }
 
     /// Per-read state touched from both the main thread (`read`, delegate callbacks)
     /// and the background queue `readMrtd` dispatches the Go work onto. `cancel()` in
@@ -41,6 +58,7 @@ public final class MRTDReader: NSObject, @unchecked Sendable {
     private struct State {
         var onStatus: (@Sendable (MRTDReadStatus) -> Void)?
         var onChipConnected: (@Sendable (String) -> Void)?
+        var alertMessageProvider: (@Sendable (MRTDAlertMessage) -> String?)?
         var credential: MRTDCredential?
         var options = MRTDReadOptions()
         var completionHandler: (@Sendable (Result<MRTDReadResult, MRTDReadError>) -> Void)?
@@ -68,6 +86,12 @@ public final class MRTDReader: NSObject, @unchecked Sendable {
 
     public override init() {
         super.init()
+    }
+
+    /// Resolves the text to show on the NFC sheet for `message`, preferring the
+    /// caller's `alertMessageProvider` and falling back to the built-in default.
+    func alertText(for message: MRTDAlertMessage) -> String {
+        alertMessageProvider?(message) ?? message.defaultMessage // getter locks internally; provider runs unlocked
     }
 
     /// Starts an NFC session and reads the document. Must be called from the main thread.
@@ -136,7 +160,7 @@ public final class MRTDReader: NSObject, @unchecked Sendable {
         }
 
         let newSession = NFCTagReaderSession(pollingOption: [pollingOption], delegate: self, queue: nil)
-        newSession?.alertMessage = "Hold your document near the NFC reader."
+        newSession?.alertMessage = alertText(for: .holdNearReader)
         withState { $0.session = newSession }
         newSession?.begin()
     }
@@ -358,7 +382,7 @@ extension MRTDReader: GmrtdMobileReaderStatusProtocol {
     public func status(_ phase: Int, dataGroup: Int) {
         let status = MRTDReadStatus.classify(phase: phase, dataGroup: dataGroup)
         DispatchQueue.main.async {
-            self.withState { $0.session }?.alertMessage = status.defaultMessage
+            self.withState { $0.session }?.alertMessage = self.alertText(for: .status(status))
             self.onStatus?(status) // getter locks internally; closure itself runs unlocked
         }
     }
@@ -373,14 +397,14 @@ extension MRTDReader: NFCTagReaderSessionDelegate {
     public func tagReaderSession(_ session: NFCTagReaderSession, didDetect tags: [NFCTag]) {
         guard let tag = tags.first else {
             DispatchQueue.main.async {
-                session.invalidate(errorMessage: "No NFC tag found.")
+                session.invalidate(errorMessage: self.alertText(for: .noTagFound))
             }
             return
         }
         session.connect(to: tag) { (error) in
             if let error = error {
                 DispatchQueue.main.async {
-                    session.invalidate(errorMessage: "Connection error: \(error.localizedDescription)")
+                    session.invalidate(errorMessage: self.alertText(for: .connectionError(underlying: error.localizedDescription)))
                 }
                 return
             }
@@ -392,7 +416,7 @@ extension MRTDReader: NFCTagReaderSessionDelegate {
                 self.readMrtd(to: isoTag, in: session)
             default:
                 DispatchQueue.main.async {
-                    session.invalidate(errorMessage: "Unsupported NFC tag type.")
+                    session.invalidate(errorMessage: self.alertText(for: .unsupportedTag))
                 }
             }
         }
