@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.4.0](https://github.com/gmrtd/gmrtd-ios/compare/v1.3.1...v1.4.0) (2026-11-21)
+
+
+### Features
+
+* allow localizing NFC sheet messages ([#57](https://github.com/gmrtd/gmrtd-ios/issues/57)) ([cdabdd3](https://github.com/gmrtd/gmrtd-ios/commit/cdabdd345b29d8f9bbe6b80a338a66fc6a046eff))
+* classify wrong MRZ/CAN and unusable credentials via gmrtd's LastReadError ([#60](https://github.com/gmrtd/gmrtd-ios/issues/60)) ([cc31de2](https://github.com/gmrtd/gmrtd-ios/commit/cc31de27a56e8e1a573cabf06ca83b260f6e2c9b))
+* make read-failure and cancel NFC sheet messages localizable ([#59](https://github.com/gmrtd/gmrtd-ios/issues/59)) ([5996d7a](https://github.com/gmrtd/gmrtd-ios/commit/5996d7a7409f50f20b2da2f58bd3e4556b6446d3))
+
+
+### Bug Fixes
+
+* bump gmrtd core to v1.10.0 ([#56](https://github.com/gmrtd/gmrtd-ios/issues/56)) ([607f8be](https://github.com/gmrtd/gmrtd-ios/commit/607f8becfbcc22e523e62c119f81c1263a5e7534))
+* bump gmrtd core to v1.9.0 ([#53](https://github.com/gmrtd/gmrtd-ios/issues/53)) ([295fdb5](https://github.com/gmrtd/gmrtd-ios/commit/295fdb50824848fe0e5f6bdb75180781d93996f2))
+* bump gmrtd core to v1.9.1 ([#55](https://github.com/gmrtd/gmrtd-ios/issues/55)) ([ea2211b](https://github.com/gmrtd/gmrtd-ios/commit/ea2211b6e2c7c7bd219ff6605302901ab3db6049))
+* show error state on NFC sheet when a read fails ([#58](https://github.com/gmrtd/gmrtd-ios/issues/58)) ([8eeef93](https://github.com/gmrtd/gmrtd-ios/commit/8eeef9396d8b56a7ca347b4ee31b85d4f5a7d963))
+
 ## [1.3.1](https://github.com/gmrtd/gmrtd-ios/compare/v1.3.0...v1.3.1) (2026-11-01)
 
 
