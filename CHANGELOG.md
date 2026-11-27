@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.5](https://github.com/gmrtd/gmrtd-ios/compare/v1.4.4...v1.4.5) (2026-11-27)
+
+
+### Bug Fixes
+
+* bump gmrtd core to v1.11.1 ([#72](https://github.com/gmrtd/gmrtd-ios/issues/72)) ([0afd4de](https://github.com/gmrtd/gmrtd-ios/commit/0afd4dee8ff23319422e633fb27e094a50435c5c))
+
 ## [1.4.4](https://github.com/gmrtd/gmrtd-ios/compare/v1.4.3...v1.4.4) (2026-11-26)
 
 
