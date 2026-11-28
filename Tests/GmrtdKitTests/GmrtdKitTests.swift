@@ -510,17 +510,17 @@ struct GmrtdKitTests {
 /// Thread-safe counter for tallying completions from `DispatchQueue.concurrentPerform`.
 private final class Counter: @unchecked Sendable {
     private let lock = NSLock()
-    private var _value = 0
+    private var storage = 0
 
     var value: Int {
         lock.lock()
         defer { lock.unlock() }
-        return _value
+        return storage
     }
 
     func increment() {
         lock.lock()
         defer { lock.unlock() }
-        _value += 1
+        storage += 1
     }
 }

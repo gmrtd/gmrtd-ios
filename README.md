@@ -1,6 +1,15 @@
 # gmrtd-ios
 
 [![CI](https://github.com/gmrtd/gmrtd-ios/actions/workflows/ci.yml/badge.svg)](https://github.com/gmrtd/gmrtd-ios/actions/workflows/ci.yml)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=gmrtd_gmrtd-ios&metric=coverage)](https://sonarcloud.io/summary/new_code?id=gmrtd_gmrtd-ios)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=gmrtd_gmrtd-ios&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=gmrtd_gmrtd-ios)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=gmrtd_gmrtd-ios&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=gmrtd_gmrtd-ios)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=gmrtd_gmrtd-ios&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=gmrtd_gmrtd-ios)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=gmrtd_gmrtd-ios&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=gmrtd_gmrtd-ios)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=gmrtd_gmrtd-ios&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=gmrtd_gmrtd-ios)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=gmrtd_gmrtd-ios&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=gmrtd_gmrtd-ios)
+[![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=gmrtd_gmrtd-ios&metric=sqale_index)](https://sonarcloud.io/summary/new_code?id=gmrtd_gmrtd-ios)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/gmrtd/gmrtd-ios/badge)](https://scorecard.dev/viewer/?uri=github.com/gmrtd/gmrtd-ios)
 [![Swift Package Manager](https://img.shields.io/badge/SPM-compatible-brightgreen.svg)](https://swift.org/package-manager/)
 [![Platform](https://img.shields.io/badge/platform-iOS%2016%2B-blue.svg)](https://developer.apple.com/ios/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)

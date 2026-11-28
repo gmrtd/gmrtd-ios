@@ -402,6 +402,7 @@ extension MRTDReader: GmrtdMobileReaderStatusProtocol {
 
 extension MRTDReader: NFCTagReaderSessionDelegate {
     public func tagReaderSessionDidBecomeActive(_ session: NFCTagReaderSession) {
+        // Nothing to do: polling starts with the session, and the read begins in didDetect.
     }
 
     public func tagReaderSession(_ session: NFCTagReaderSession, didDetect tags: [NFCTag]) {
