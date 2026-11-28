@@ -49,9 +49,9 @@ jobs:
   sonarcloud:
     needs: build-and-test
     runs-on: ubuntu-latest
-    # Fork PRs get no secrets, so without SONAR_TOKEN the scan can only fail. Skip it;
-    # the code is still analysed on the push to main once merged.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # Fork and Dependabot PRs get no Actions secrets, so without SONAR_TOKEN the scan can
+    # only fail. Skip it; the code is still analysed on the push to main once merged.
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]')
     permissions:
       contents: read
       pull-requests: read # lets SonarCloud decorate PRs with analysis results
