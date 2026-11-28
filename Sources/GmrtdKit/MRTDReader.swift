@@ -179,151 +179,161 @@ public final class MRTDReader: NSObject, @unchecked Sendable {
         withState { $0.nfcTag = tag }
 
         DispatchQueue.global().async {
-            // Snapshot once under the lock rather than re-acquiring it for every
-            // field — both are value types (Sendable), so a copy is all this needs,
-            // and it keeps the lock held for microseconds instead of the whole
-            // (potentially multi-second) Go call below.
-            let (credential, options) = self.withState { ($0.credential!, $0.options) }
+            let result = self.performRead()
+            self.finishRead(result, session: session)
+        }
+    }
 
-            let result = GmrtdGoRuntime.serialized { () -> Result<MRTDReadResult, MRTDReadError> in
-                // Drop our reference to the gomobile reader wrapper before releasing
-                // the lock, whichever path out of this closure is taken. Letting ARC
-                // free it later, on whatever thread happens to hold the last
-                // reference, is the dealloc race described on `GmrtdGoRuntime`.
-                defer { self.gmrtdReader = nil }
+    /// Runs the (potentially multi-second) gmrtd read on the calling thread. Called
+    /// from `readMrtd`'s background queue, never the main thread.
+    private func performRead() -> Result<MRTDReadResult, MRTDReadError> {
+        // Snapshot once under the lock rather than re-acquiring it for every
+        // field — both are value types (Sendable), so a copy is all this needs,
+        // and it keeps the lock held for microseconds instead of the whole
+        // (potentially multi-second) Go call below.
+        let (credential, options) = self.withState { ($0.credential!, $0.options) }
 
-                var gmrtdPassword: GmrtdMobileMrtdPassword?
+        return GmrtdGoRuntime.serialized { () -> Result<MRTDReadResult, MRTDReadError> in
+            // Drop our reference to the gomobile reader wrapper before releasing
+            // the lock, whichever path out of this closure is taken. Letting ARC
+            // free it later, on whatever thread happens to hold the last
+            // reference, is the dealloc race described on `GmrtdGoRuntime`.
+            defer { self.gmrtdReader = nil }
 
-                var err: NSError?
-                switch credential {
-                case .mrz(let s): gmrtdPassword = GmrtdMobileNewPasswordMrz(s, &err)
-                case .can(let c): gmrtdPassword = GmrtdMobileNewPasswordCan(c, &err)
-                case .mrzi(let documentNo, let dateOfBirth, let dateOfExpiry):
-                    gmrtdPassword = GmrtdMobileNewPasswordMrzi(documentNo, dateOfBirth, dateOfExpiry, &err)
-                }
-                if let err {
-                    #if DEBUG
-                    print("credential password error: \(err)")
-                    #endif
-                    return .failure(MRTDReadError.classify(err))
-                }
+            var gmrtdPassword: GmrtdMobileMrtdPassword?
 
-                self.gmrtdReader = GmrtdMobileNewReader(self, self)
-
-                if options.skipPace {
-                    self.gmrtdReader?.skipPace()
-                }
-
-                if options.allowBacFallbackOnPaceError {
-                    self.gmrtdReader?.allowBacFallbackOnPaceError()
-                }
-
-                if options.requireAuthenticDocument {
-                    self.gmrtdReader?.requireAuthenticDocument()
-                }
-
-                if options.skipImages {
-                    self.gmrtdReader?.skipImages()
-                }
-
-                // Bind an AA challenge rather than relying on the library's internally
-                // generated one, so the same nonce can be passed back in at verification
-                // time. `options.aaChallenge` (already length-checked in `read`) is used
-                // when the caller supplied one — see MRTDReadOptions.aaChallenge's doc
-                // comment: only a challenge sourced from the verifying party gives real
-                // relay-attack protection. Otherwise fall back to a locally-generated one,
-                // which still binds this read to its own later on-device re-verification.
-                var aaChallenge: Data?
-                var challengeToUse: Data? = options.aaChallenge
-                if challengeToUse == nil {
-                    var randomBytes = [UInt8](repeating: 0, count: 8)
-                    if SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes) == errSecSuccess {
-                        challengeToUse = Data(randomBytes)
-                    }
-                }
-                if let challengeToUse {
-                    do {
-                        _ = try self.gmrtdReader?.withAAChallenge(challengeToUse)
-                        aaChallenge = challengeToUse
-                    } catch {
-                        #if DEBUG
-                        print("gmrtd.withAAChallenge error: \(error)")
-                        #endif
-                    }
-                }
-
-                if options.extendedLength {
-                    do {
-                        try self.gmrtdReader?.setApduMaxLe(65536)
-                    } catch {
-                        #if DEBUG
-                        print("gmrtd.setApduMaxLe error: \(error)")
-                        #endif
-                    }
-                }
-
-                var gmrtdDocument: GmrtdMobileDocument?
-
-                do {
-                    try gmrtdDocument = self.gmrtdReader?.readDocument(gmrtdPassword, atr: Data(), ats: Data())
-                } catch {
-                    #if DEBUG
-                    print("gmrtd.readDocument error: \(error)")
-                    #endif
-                    let readError = self.gmrtdReader?.lastReadError() ?? GmrtdMobileREAD_ERROR_OTHER
-                    return .failure(MRTDReadError.classify(error, readError: readError).withRejectedSummary {
-                        try self.gmrtdReader?.rejectedDocument()?.summaryJson()
-                    })
-                }
-
-                var gmrtdSummary: DocumentSummary?
-
-                do {
-                    if let summaryJson = try gmrtdDocument?.summaryJson() {
-                        gmrtdSummary = try DocumentSummary(jsonData: summaryJson)
-                    }
-                } catch let error as DecodingError {
-                    #if DEBUG
-                    print("DocumentSummary decoding error: \(error)")
-                    #endif
-                    return .failure(.summaryDecodingFailed(underlying: "\(error)"))
-                } catch {
-                    #if DEBUG
-                    print("gmrtd.summaryJson error: \(error)")
-                    #endif
-                    return .failure(MRTDReadError.classify(error))
-                }
-
-                var gmrtdCbor: Data?
-                do {
-                    gmrtdCbor = try gmrtdDocument?.documentExCbor()
-                } catch {
-                    #if DEBUG
-                    print("gmrtd.documentExCbor error: \(error)")
-                    #endif
-                }
-
-                return .success(MRTDReadResult(cborData: gmrtdCbor, summary: gmrtdSummary, aaChallenge: aaChallenge))
+            var err: NSError?
+            switch credential {
+            case .mrz(let s): gmrtdPassword = GmrtdMobileNewPasswordMrz(s, &err)
+            case .can(let c): gmrtdPassword = GmrtdMobileNewPasswordCan(c, &err)
+            case .mrzi(let documentNo, let dateOfBirth, let dateOfExpiry):
+                gmrtdPassword = GmrtdMobileNewPasswordMrzi(documentNo, dateOfBirth, dateOfExpiry, &err)
+            }
+            if let err {
+                #if DEBUG
+                print("credential password error: \(err)")
+                #endif
+                return .failure(MRTDReadError.classify(err))
             }
 
-            switch result {
-            case .success(let readResult):
-                DispatchQueue.main.async {
-                    let handler = self.claimCompletionHandler()
-                    session.invalidate()
+            self.gmrtdReader = GmrtdMobileNewReader(self, self)
 
-                    // Delay before the NFC screen disappears — completion runs slightly after invalidate.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                        handler?(.success(readResult))
-                    }
+            if options.skipPace {
+                self.gmrtdReader?.skipPace()
+            }
+
+            if options.allowBacFallbackOnPaceError {
+                self.gmrtdReader?.allowBacFallbackOnPaceError()
+            }
+
+            if options.requireAuthenticDocument {
+                self.gmrtdReader?.requireAuthenticDocument()
+            }
+
+            if options.skipImages {
+                self.gmrtdReader?.skipImages()
+            }
+
+            // Bind an AA challenge rather than relying on the library's internally
+            // generated one, so the same nonce can be passed back in at verification
+            // time. `options.aaChallenge` (already length-checked in `read`) is used
+            // when the caller supplied one — see MRTDReadOptions.aaChallenge's doc
+            // comment: only a challenge sourced from the verifying party gives real
+            // relay-attack protection. Otherwise fall back to a locally-generated one,
+            // which still binds this read to its own later on-device re-verification.
+            var aaChallenge: Data?
+            var challengeToUse: Data? = options.aaChallenge
+            if challengeToUse == nil {
+                var randomBytes = [UInt8](repeating: 0, count: 8)
+                if SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes) == errSecSuccess {
+                    challengeToUse = Data(randomBytes)
                 }
-            case .failure(let error):
-                DispatchQueue.main.async {
-                    // Must pass an error message: a bare `invalidate()` makes iOS show the
-                    // sheet's success checkmark (and success feedback) for a failed read.
-                    self.withState { $0.session }?.invalidate(errorMessage: self.alertText(for: .readFailed(error)))
-                    self.claimCompletionHandler()?(.failure(error))
+            }
+            if let challengeToUse {
+                do {
+                    _ = try self.gmrtdReader?.withAAChallenge(challengeToUse)
+                    aaChallenge = challengeToUse
+                } catch {
+                    #if DEBUG
+                    print("gmrtd.withAAChallenge error: \(error)")
+                    #endif
                 }
+            }
+
+            if options.extendedLength {
+                do {
+                    try self.gmrtdReader?.setApduMaxLe(65536)
+                } catch {
+                    #if DEBUG
+                    print("gmrtd.setApduMaxLe error: \(error)")
+                    #endif
+                }
+            }
+
+            var gmrtdDocument: GmrtdMobileDocument?
+
+            do {
+                try gmrtdDocument = self.gmrtdReader?.readDocument(gmrtdPassword, atr: Data(), ats: Data())
+            } catch {
+                #if DEBUG
+                print("gmrtd.readDocument error: \(error)")
+                #endif
+                let readError = self.gmrtdReader?.lastReadError() ?? GmrtdMobileREAD_ERROR_OTHER
+                return .failure(MRTDReadError.classify(error, readError: readError).withRejectedSummary {
+                    try self.gmrtdReader?.rejectedDocument()?.summaryJson()
+                })
+            }
+
+            var gmrtdSummary: DocumentSummary?
+
+            do {
+                if let summaryJson = try gmrtdDocument?.summaryJson() {
+                    gmrtdSummary = try DocumentSummary(jsonData: summaryJson)
+                }
+            } catch let error as DecodingError {
+                #if DEBUG
+                print("DocumentSummary decoding error: \(error)")
+                #endif
+                return .failure(.summaryDecodingFailed(underlying: "\(error)"))
+            } catch {
+                #if DEBUG
+                print("gmrtd.summaryJson error: \(error)")
+                #endif
+                return .failure(MRTDReadError.classify(error))
+            }
+
+            var gmrtdCbor: Data?
+            do {
+                gmrtdCbor = try gmrtdDocument?.documentExCbor()
+            } catch {
+                #if DEBUG
+                print("gmrtd.documentExCbor error: \(error)")
+                #endif
+            }
+
+            return .success(MRTDReadResult(cborData: gmrtdCbor, summary: gmrtdSummary, aaChallenge: aaChallenge))
+        }
+    }
+
+    /// Closes the NFC sheet and delivers `result` to the completion handler.
+    private func finishRead(_ result: Result<MRTDReadResult, MRTDReadError>, session: NFCTagReaderSession) {
+        switch result {
+        case .success(let readResult):
+            DispatchQueue.main.async {
+                let handler = self.claimCompletionHandler()
+                session.invalidate()
+
+                // Delay before the NFC screen disappears — completion runs slightly after invalidate.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    handler?(.success(readResult))
+                }
+            }
+        case .failure(let error):
+            DispatchQueue.main.async {
+                // Must pass an error message: a bare `invalidate()` makes iOS show the
+                // sheet's success checkmark (and success feedback) for a failed read.
+                self.withState { $0.session }?.invalidate(errorMessage: self.alertText(for: .readFailed(error)))
+                self.claimCompletionHandler()?(.failure(error))
             }
         }
     }
@@ -420,16 +430,15 @@ extension MRTDReader: NFCTagReaderSessionDelegate {
                 return
             }
 
-            switch tag {
-            case .iso7816(let isoTag):
-                let selectedAID = isoTag.initialSelectedAID
-                DispatchQueue.main.async { self.onChipConnected?(selectedAID) }
-                self.readMrtd(to: isoTag, in: session)
-            default:
+            guard case .iso7816(let isoTag) = tag else {
                 DispatchQueue.main.async {
                     session.invalidate(errorMessage: self.alertText(for: .unsupportedTag))
                 }
+                return
             }
+            let selectedAID = isoTag.initialSelectedAID
+            DispatchQueue.main.async { self.onChipConnected?(selectedAID) }
+            self.readMrtd(to: isoTag, in: session)
         }
     }
 
