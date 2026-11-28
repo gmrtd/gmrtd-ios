@@ -1,0 +1,15 @@
+# Keeps the commit-hash-pinned GitHub Actions current: Dependabot updates the hash
+# and its "# vX.Y.Z" comment together. The gmrtd core binary in Package.swift is
+# bumped by gmrtd-release-tracking instead, so SwiftPM isn't covered here.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # Conventional-commit PR titles ("ci: bump ..."), which pr-title.yml requires.
+    commit-message:
+      prefix: ci
+    groups:
+      github-actions:
+        patterns: ["*"]
