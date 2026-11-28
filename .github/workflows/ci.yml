@@ -10,14 +10,14 @@ jobs:
   build-and-test:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # Tests use Swift Testing, which needs Xcode 16+. Pin to a specific
       # version rather than `latest-stable`: the runner image can have a
       # newer Xcode installed before its matching iOS Simulator runtime is
       # provisioned, which leaves xcodebuild with no concrete simulator
       # destinations to run against. 16.4 is the runner's default Xcode and
       # is guaranteed to ship with a matching runtime.
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: "16.4"
       # GmrtdKit's binary target is iOS-only, so plain `swift build`/`swift
@@ -35,4 +35,50 @@ jobs:
           DEVICE_NAME=$(xcrun simctl list devices -j | jq -r --arg rt "$RUNTIME_ID" '
             .devices[$rt][] | select(.isAvailable) | select(.name | test("^iPhone")) | .name' | head -1)
           echo "Testing against: $DEVICE_NAME ($RUNTIME_ID)"
-          xcodebuild test -scheme GmrtdKit -destination "platform=iOS Simulator,name=$DEVICE_NAME"
+          xcodebuild test -scheme GmrtdKit -destination "platform=iOS Simulator,name=$DEVICE_NAME" \
+            -enableCodeCoverage YES -resultBundlePath Result.xcresult
+      # SonarCloud runs on Linux, so hand it the coverage in its generic format with
+      # repository-relative paths.
+      - run: scripts/xccov-to-sonar.sh Result.xcresult > coverage.xml
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: coverage.xml
+          retention-days: 5
+
+  sonarcloud:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    # Fork PRs get no secrets, so without SONAR_TOKEN the scan can only fail. Skip it;
+    # the code is still analysed on the push to main once merged.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      pull-requests: read # lets SonarCloud decorate PRs with analysis results
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # full history, for blame and new-code detection
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: coverage
+      # Project key and organization come from repository variables (Settings >
+      # Secrets and variables > Actions > Variables); SONAR_TOKEN is a repository secret
+      # generated on sonarcloud.io. Automatic Analysis must be off in SonarCloud.
+      # Ignored rule: S1172 (unused parameter) fires on NFCTagReaderSessionDelegate and
+      # gomobile transceiver methods, whose signatures are fixed by the protocol.
+      - uses: sonarsource/sonarqube-scan-action@59202af334b4ba7b5db01b701b8e79f8b3bef0f4 # v8.5.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.sources=Sources
+            -Dsonar.tests=Tests
+            -Dsonar.sourceEncoding=UTF-8
+            -Dsonar.coverageReportPaths=coverage.xml
+            -Dsonar.issue.ignore.multicriteria=e1
+            -Dsonar.issue.ignore.multicriteria.e1.ruleKey=swift:S1172
+            -Dsonar.issue.ignore.multicriteria.e1.resourceKey=**/*.swift

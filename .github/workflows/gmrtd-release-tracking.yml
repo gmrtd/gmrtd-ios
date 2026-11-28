@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # A PAT, not the default GITHUB_TOKEN: PRs opened with the default
           # token don't trigger other workflows (incl. ci.yml's pull_request
@@ -68,7 +68,7 @@ jobs:
           set -euo pipefail
           version="${{ steps.resolve.outputs.version }}"
           url="https://github.com/gmrtd/gmrtd/releases/download/v${version}/Gmrtd.xcframework.zip"
-          curl -sSL --fail -o Gmrtd.xcframework.zip "$url"
+          curl -sSL --fail --proto '=https' --tlsv1.2 -o Gmrtd.xcframework.zip "$url"
           # SwiftPM's binary-target checksum is the SHA-256 of the zip, so sha256sum gives the
           # same value as `swift package compute-checksum` without needing a Swift toolchain.
           checksum=$(sha256sum Gmrtd.xcframework.zip | cut -d' ' -f1)
